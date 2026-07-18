@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Soosyn 健康夥伴 n69</title>
+    <title>Soosyn 健康夥伴 n087-2</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -18,7 +18,17 @@
             --ai-msg-bg: #ffffff;
             --accent-red: #ff8c73;
         }
-        body, html { margin: 0; padding: 0; height: 100%; background-color: var(--bg-color); color: var(--text-dark); font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; overflow: hidden; }
+        body, html { 
+    margin: 0; 
+    padding: 0; 
+    height: 100%; 
+    width: 100%; /* 新增 */
+    position: fixed; /* 新增：固定底層，交由內部容器去滾動 */
+    background-color: var(--bg-color); 
+    color: var(--text-dark); 
+    font-family: "PingFang TC", "Microsoft JhengHei", sans-serif; 
+    overflow: hidden; 
+}
         .hidden { display: none !important; }
         .modal-overlay { position: fixed; inset: 0; background: #f5f1eb; display: flex; justify-content: center; align-items: center; z-index: 2000; padding: 20px; }
         #zoom-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 3000; display: flex; justify-content: center; align-items: center; cursor: zoom-out; }
@@ -29,7 +39,13 @@
         #app-container { 
     display: flex; 
     flex-direction: column; 
-    height: 100dvh; /* 這裡原本是 100vh，改成 100dvh 可以完美避開手機網址列縮放問題 */
+    /* 移除 height: 100dvh; */
+    position: absolute; /* 新增 */
+    top: 0; /* 新增 */
+    bottom: 0; /* 新增 */
+    left: 0; /* 新增 */
+    right: 0; /* 新增 */
+    width: 100%; /* 新增 */
 }
         header { height: 60px; display: flex; justify-content: space-between; align-items: center; padding: 0 20px; background: white; border-bottom: 1px solid #eee; z-index: 100; }
         .logo-text { font-weight: bold; color: var(--tbp-blue); font-size: 1.1rem; }
@@ -54,6 +70,9 @@
     box-shadow: 0 10px 20px rgba(0,0,0,0.05); 
     cursor: pointer; 
 }
+
+/* 新增這一行，單獨把健康摘要的滑鼠游標改回一般箭頭 */
+.summary-card { cursor: default; }
 
         .summary-header { font-size: 1.1rem; color: #888; border-bottom: 1px solid #f5f5f5; padding-bottom: 10px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
         .battery-container { margin: 15px 0; }
@@ -88,9 +107,56 @@
     text-align: center;
     letter-spacing: 0.5px;
 }
-        .input-box { width: 100%; max-width: 800px; background: white; border-radius: 25px; padding: 5px 15px; display: flex; align-items: center; border: 1px solid #ddd; }
-        #user-input { flex: 1; border: none; outline: none; padding: 10px; font-size: 16px; background: transparent; }
-        .send-btn { background: var(--tbp-blue); color: white; border: none; width: 35px; height: 35px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.input-box { 
+    width: 100%; 
+    max-width: 800px; 
+    background: white; 
+    border-radius: 25px; 
+    /* 調整上下 padding，讓單行時視覺置中 */
+    padding: 8px 15px; 
+    display: flex; 
+    align-items: flex-end; /* 底部對齊，確保多行時按鈕在最下面 */
+    border: 1px solid #ddd; 
+    box-sizing: border-box;
+}
+
+#user-input { 
+    flex: 1; 
+    border: none; 
+    outline: none; 
+    padding: 8px 0; /* 給定明確的上下內距 */
+    font-size: 16px; 
+    background: transparent; 
+    -webkit-user-select: auto !important;
+    user-select: auto !important;
+    touch-action: manipulation;
+    resize: none; 
+    overflow-y: hidden; 
+    line-height: 20px; /* 給定絕對數值的行高 */
+    height: 36px; /* 初始高度 = 行高20 + 上下padding各8 = 36 */
+    min-height: 36px; /* 絕對不准縮小低於這高度，防止字被切掉 */
+    max-height: 120px; 
+    font-family: inherit;
+    -webkit-appearance: none; 
+    box-sizing: border-box;
+}
+
+.send-btn { 
+    background: var(--tbp-blue); 
+    color: white; 
+    border: none; 
+    width: 35px; 
+    height: 35px; 
+    border-radius: 50%; 
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    flex-shrink: 0; 
+    /* 移除 margin-bottom，配合 input-box 的 padding 自動置中 */
+    margin-bottom: 0px; 
+    margin-left: 10px; /* 和輸入文字保持一點距離 */
+}
         .typing-dots { display: flex; gap: 4px; padding: 5px 10px; }
         .dot { width: 6px; height: 6px; background: #ccc; border-radius: 50%; animation: blink 1.4s infinite both; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
@@ -206,8 +272,135 @@
     display: flex;
     align-items: center;
 }
+/* 日曆樣式 */
+/* 日曆樣式優化 */
+.calendar-card { 
+    max-width: 320px; 
+    padding: 25px 20px; 
+}
+.calendar-header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    margin-bottom: 15px; 
+    color: #2b3a42; /* 提高對比度：使用深色灰藍，閱讀更舒適 */
+    font-size: 1.1rem; 
+    font-weight: bold; 
+}
+.calendar-header button { 
+    background: var(--tbp-light-blue); 
+    border: none; 
+    width: 32px; 
+    height: 32px; 
+    border-radius: 50%; 
+    color: #2b3a42; /* 提高箭頭對比度 */
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    transition: 0.2s; 
+}
+.calendar-header button:hover { 
+    background: var(--tbp-blue); 
+    color: white; 
+}
+.calendar-grid { 
+    display: grid; 
+    grid-template-columns: repeat(7, 1fr); 
+    gap: 5px; 
+    text-align: center; 
+    align-items: center;
+}
+.calendar-day-header { 
+    font-size: 0.85rem; 
+    color: #444; /* 提高星期標題對比度 */
+    font-weight: bold; 
+    margin-bottom: 5px; 
+}
+.calendar-day { 
+    width: 36px;        /* 固定寬度，確保在各種螢幕上都是正圓 */
+    height: 36px;       /* 固定高度，確保在各種螢幕上都是正圓 */
+    border-radius: 50%; 
+    font-size: 0.9rem; 
+    cursor: pointer; 
+    color: #222;        /* 提高一般日期數字對比度 */
+    transition: 0.2s; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    margin: auto;       /* 在網格格中完美居中 */
+    box-sizing: border-box;
+}
+.calendar-day:hover:not(.empty):not(.disabled) { 
+    background: #e2ddd4; 
+}
+.calendar-day.empty { 
+    cursor: default; 
+}
+.calendar-day.disabled { 
+    color: #a0a0a0;     /* 無資料日期維持淡色，但調整到清晰可讀的範圍 */
+    cursor: default; 
+}
+.calendar-day.has-data { 
+    color: #1a2a30;     
+    font-weight: bold; 
+    border: 1px solid transparent; 
+}
 
+/* 🟢 綠燈：柔和淺綠色 */
+.calendar-day.has-data.status-green { background: #def7e2; }
+.calendar-day.has-data.status-green:hover { background: #018837; color: white; }
 
+/* 🟡 黃燈：柔和淺黃色 */
+.calendar-day.has-data.status-yellow { background: #fff0cf; }
+.calendar-day.has-data.status-yellow:hover { background: #ffb400; color: white; }
+
+/* 🔴 紅燈：柔和淺紅色 */
+.calendar-day.has-data.status-red { background: #fadede; }
+.calendar-day.has-data.status-red:hover { background: #dc0000; color: white; }
+
+/* 🟠 預防有黃紅燈：柔和淺橘色 */
+.calendar-day.has-data.status-orange { background: #fce2cf; }
+.calendar-day.has-data.status-orange:hover { background: #f06400; color: white; }
+
+/* 🔵 預設/其他：維持原本的淺藍色 */
+.calendar-day.has-data.status-default { background: var(--tbp-light-blue); }
+.calendar-day.has-data.status-default:hover { background: var(--tbp-blue); color: white; }
+.calendar-day.today { 
+    text-decoration: underline; 
+    text-decoration-color: var(--accent-red); 
+    text-decoration-thickness: 2px; 
+    text-underline-offset: 5px; /* 將橘紅色橫線往下移 5px，不再緊貼文字 */
+}
+/* 自定義日曆圖片按鈕 */
+.custom-calendar-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;  /* 請將數值改成跟你 .avatar 一樣的大小 */
+    height: 34px; /* 請將數值改成跟你 .avatar 一樣的大小 */
+    border-radius: 50%;
+    overflow: hidden; /* 確保圖片超出圓角的部分被隱藏 */
+    background-color: #f0f4f8; /* 如果你的圖是透明背景，可以加個底色，不需要的話可刪除 */
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* 加上 hover 效果，讓它看起來是個可以點擊的按鈕 */
+.custom-calendar-btn:hover {
+    transform: scale(1.05); /* 滑鼠游標移過去時微放大 */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15); /* 加點陰影提升質感 */
+}
+
+/* 確保圖片完美填滿圓形框框 */
+.calendar-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* 如果圖片原本不是正方形，cover 可以確保它不變形並填滿 */
+}
 </style>
 </head>
 <body>
@@ -238,7 +431,6 @@
     </div>
 </div>
 
-
     <div id="nickname-overlay" class="modal-overlay hidden">
         <div class="modal-card">
             <h3>歡迎！請問該怎麼稱呼你？</h3>
@@ -256,29 +448,48 @@
             <button style="margin-top:10px; background:none; border:none; color:#888; cursor:pointer;" onclick="closePwModal()">取消</button>
         </div>
     </div>
-
+<div id="calendar-overlay" class="modal-overlay hidden" onclick="closeCalendarModal(event)">
+        <div class="modal-card calendar-card" onclick="event.stopPropagation()">
+            <div class="calendar-header">
+                <button onclick="changeMonth(-1)">◀</button>
+                <h3 id="calendar-month-year"></h3>
+                <button onclick="changeMonth(1)">▶</button>
+            </div>
+            <div class="calendar-grid" id="calendar-grid">
+                </div>
+            <button class="primary-btn" style="margin-top: 20px; background: white; color: var(--tbp-blue); border: 1px solid var(--tbp-blue);" onclick="closeCalendarModal()">關閉</button>
+        </div>
+    </div>
     <div id="zoom-overlay" class="hidden" onclick="closeZoom()"><div id="zoom-container" onclick="event.stopPropagation()"></div></div>
 
     <div id="app-container" class="hidden">
         <header>
             <div class="logo-text">Soosyn Health Companion</div>
-            <div class="user-info" onclick="toggleDropdown()">
-                <div id="display-name" style="font-size: 14px; color: #666;">User</div>
-                <div class="avatar" id="avatar-char">U</div>
-                <div id="settings-menu" class="dropdown hidden">
-                    <button onclick="openPwModal(event)">🔒 修改密碼</button>
-                    <button onclick="logout(event)" style="color: #ff8c73;">📤 登出系統</button>
+            <div style="display: flex; align-items: center; gap: 12px;">
+    <!-- 改用自定義圖片的圓形按鈕 -->
+    <button onclick="openCalendarModal()" class="custom-calendar-btn" title="健康摘要">
+        <img src="images/calendar.svg" alt="日曆" class="calendar-img">
+    </button>
+    
+    <div class="user-info" onclick="toggleDropdown()">
+
+                    <div id="display-name" style="display: none;">User</div>
+                    <div class="avatar" id="avatar-char">U</div>
+                    <div id="settings-menu" class="dropdown hidden">
+                        <button onclick="openPwModal(event)">🔒 修改密碼</button>
+                        <button onclick="logout(event)" style="color: #ff8c73;">📤 登出系統</button>
+                    </div>
                 </div>
             </div>
         </header>
         <main id="main-area"><div id="chat-history"></div></main>
         <div class="footer-input">
             <div class="input-box">
-                <input type="text" id="user-input" placeholder="說點什麼..." onkeypress="if(event.key==='Enter') sendMessage()">
+                <textarea id="user-input" placeholder="說點什麼..." rows="1"></textarea>
                 <button class="send-btn" onclick="sendMessage()">▲</button>
             </div>
         <!-- 這裡加上警語 -->
-    <div class="disclaimer-text">AI 回覆僅供健康參考，無法取代專業醫療。</div>
+    <div class="disclaimer-text">AI 回覆僅供參考，無法取代專業醫療建議；健康數據皆於地端保存處理，隱私安全有保障。</div>
 </div>
 
 <script>
@@ -297,6 +508,60 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
+// 修復鍵盤與輸入框自動調整高度邏輯 (替換掉原本第二個 DOMContentLoaded)
+document.addEventListener('DOMContentLoaded', () => {
+    const userInput = document.getElementById('user-input');
+    
+    if (userInput) {
+        // 1. Android 鍵盤彈起確保不遮擋
+        window.addEventListener('resize', () => {
+            if (document.activeElement === userInput) {
+                setTimeout(() => {
+                    userInput.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                }, 150);
+            }
+        });
+
+        // 2. 自動調整高度函數
+        const autoResize = () => {
+            userInput.style.height = '36px'; // 👈 用 36px 取代原本的 'auto'，這是關鍵！
+            if (userInput.scrollHeight > 120) { 
+                userInput.style.height = '120px'; // 最高限制 120px
+                userInput.style.overflowY = 'auto';
+            } else {
+                userInput.style.height = userInput.scrollHeight + 'px';
+                userInput.style.overflowY = 'hidden';
+            }
+        };
+
+        // 監聽輸入事件來調整高度
+        userInput.addEventListener('input', autoResize);
+
+        // 3. 處理 Enter 鍵發送與手機換行
+        userInput.addEventListener('keydown', (e) => {
+            // 避免中文輸入法組字時誤觸
+            if (e.isComposing || e.keyCode === 229) return;
+            
+            // 判斷是否為手機/平板等觸控裝置
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || navigator.maxTouchPoints > 0;
+
+            // 當按下 Enter 且沒有按住 Shift 時
+            if (e.key === 'Enter' && !e.shiftKey) {
+                if (isMobile) {
+                    // 手機版：什麼都不做，讓系統原生行為去換行
+                    return;
+                } else {
+                    // 電腦版：阻止換行，並發送訊息
+                    e.preventDefault();
+                    sendMessage();
+                }
+            }
+        });
+
+        // 初始調整一次高度，稍微延遲確保畫面已經渲染完成，避免高度計算錯誤
+        setTimeout(autoResize, 50);
+    }
+});
 
 // 初始化 LIFF
 async function initLIFF() {
@@ -346,7 +611,7 @@ let assistantName = "";
     "😊 還有想進一步了解的健康資訊嗎？",
     "關於健康資訊，還有哪部分想了解的呢？😊",
     "✨ 還有其他想了解的指標或建議嗎？我隨時都在喔！",
-    "希望這些資訊對你有幫助！還有想查看其他的健康資訊或健康摘要嗎？🌿"
+    "希望這些資訊對你有幫助！還有想查看其他的健康資訊嗎？🌿"
 ];
 // 隨機抽選函數
 function getRandomEndQuestion() {
@@ -359,7 +624,7 @@ function getRandomEndQuestion() {
         "我會與你一起建立好習慣！✨ 一步一步邁向更健康的生活！現在想從哪個部分開始了解呢？",
         "🌟 維持健康的好習慣很重要！讓我們一起穩定前進吧！想查看哪個資訊呢？"
     ];
-    const ENCYCLOPEDIA_KEYWORDS = ["黃金修復", "精神負荷", "過度疲憊", "修復不足", "什麼是睡眠平衡", "睡眠連續性", "睡眠規律性", "睡眠平衡度?", "睡眠平衡?", "睡眠平衡度？", "睡眠平衡？", "標準修復", "高身心壓力", "極度疲乏日", "睡眠結構混亂", "極端負荷", "最差睡眠結構", "過度訓練/發炎", "修復時間", "核心修復", "放鬆指數", "脈搏穩定度", "血氧穩定度", "睡眠連續性", "睡眠規律性"];
+    const ENCYCLOPEDIA_KEYWORDS = ["什麼是睡眠平衡", "睡眠平衡度?", "睡眠平衡?", "睡眠平衡度？", "睡眠平衡？"];
 
 async function login() {
     const serial = document.getElementById('serial').value;
@@ -412,7 +677,6 @@ document.addEventListener('keydown', (event) => {
     }
 });
 
-
 // 執行綁定動作
 async function bindLineAccount() {
     try {
@@ -444,8 +708,23 @@ function closeBindingModal() {
     document.getElementById('line-binding-overlay').classList.add('hidden');
 }
 
-
-
+// --- 新增：開啟 PDF 睡眠報告的函數 ---
+function openSleepReport(dateStr) {
+    if (!currentSerial) {
+        alert("找不到當前帳號資訊！");
+        return;
+    }
+    
+    // 把 YYYY/MM/DD 統一轉換為 YYYY-MM-DD
+    const formattedDate = dateStr.replace(/\//g, '-');
+    
+    // 💡 加上你專屬的 Vercel 完整網址 (避免本地測試時路徑跑掉)
+    const baseUrl = "https://ai-assistant-eight-puce.vercel.app";
+    const pdfUrl = `${baseUrl}/api/health?action=pdf&account=${encodeURIComponent(currentSerial)}&date=${encodeURIComponent(formattedDate)}`;
+    
+    // 開啟新分頁來顯示 PDF
+    window.open(pdfUrl, '_blank');
+}
 
 // --- 修改後的 initApp 函式不同裝置的第一次登入統一計算 ---
 async function initApp(name, aiName) {
@@ -472,19 +751,54 @@ userNickname = name;      // 存入全域變數
 
         if (!existingSurvey) {
             // 如果資料庫沒資料，才顯示問卷
-            await appendAiMessage(`哈囉 ${name} 👋，你今天的感覺比較接近哪一種呢？\n請直接點選下方 ①、②、③、④、⑤ 按鈕回饋~`);
+            await appendAiMessage(`哈囉 ${name} 👋，你今天的感覺比較接近哪一種呢？\n請直接點選下方 ①、②、③、④、⑤ 按鈕回饋~幫助我優化你的健康模型。`);
             appendStatusOptions();
         } else {
-            // 如果今天已經在其他裝置填過了，直接顯示歡迎詞
-            await appendAiMessage(`歡迎回來 ${name}，我是你的健康夥伴 ${aiName}。 👋`);
-            await new Promise(r => setTimeout(r, 600));
-            await appendAiMessage(CTA_PHRASES[Math.floor(Math.random() * CTA_PHRASES.length)]);
+            // 檢查是否同意 AI 授權
+            const { data: permission } = await _supabase
+                .from('user_ai_permissions')
+                .select('is_agreed')
+                .eq('serial_number', currentSerial)
+                .maybeSingle();
+
+            let usedAIGreeting = false;
+
+            if (permission && permission.is_agreed) {
+                // 取得 AI 生成開場白所需的數據狀態
+                const aiData = await getAIGreetingPayload(currentSerial);
+                
+                if (aiData) {
+                    // 顯示打字動畫
+                    const typingId = 'typing-greeting-' + Date.now();
+                    document.getElementById('chat-history').insertAdjacentHTML('beforeend', `
+                        <div class="msg-row ai-row" id="${typingId}">
+                            <div class="ai-bubble">
+                                <div class="typing-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+                            </div>
+                        </div>
+                    `);
+                    scrollToBottom();
+
+                    // 呼叫專屬的 AI 開場白 API
+                    const greeting = await callGreetingAPI(name, aiName, aiData);
+                    
+                    document.getElementById(typingId)?.remove();
+                    await appendAiMessage(greeting);
+                    usedAIGreeting = true;
+chatHistory.push({ role: "model", parts: [{ text: greeting }] });
+                }
+            }
+
+            // 如果沒同意、沒資料或是發生錯誤，走原本的隨機罐頭路線
+            if (!usedAIGreeting) {
+                await appendAiMessage(`歡迎回來 ${name}，我是你的健康夥伴 ${aiName}。 👋`);
+                await new Promise(r => setTimeout(r, 600));
+                await appendAiMessage(CTA_PHRASES[Math.floor(Math.random() * CTA_PHRASES.length)]);
+            }
         }
-    }
-}
-
-    
-
+    } // 👈 補上這個：結束 if (!aiName) 的 else 區塊
+} // 👈 補上這個：結束 initApp 函式
+ 
 // 1. 日期判斷工具
 function getTargetDate(msg) {
     const today = new Date();
@@ -534,7 +848,8 @@ return getLocalDateString(); // <-- 修改這裡，不要用 ISOString
 async function sendMessage() {
     const input = document.getElementById('user-input'), msg = input.value.trim();
     if (!msg) return; 
-    input.value = ''; 
+    input.value = '';
+    input.style.height = '36px'; // 👈 把原本的 'auto' 換成 '36px' 
     appendUserMessage(msg);
 
     // 每次發送新訊息時，先嘗試移除舊的按鈕列
@@ -604,15 +919,6 @@ if (msg.includes("健康摘要")) {
     return; 
 }
 
-
-const keywords = ["趨勢圖", "圖表"];
-
-if (keywords.some(key => msg.includes(key))) {
-    await appendAiMessage("🔍 想查看哪一種趨勢圖表呢？");
-    appendTrendOptions();
-    return;
-}
-
     // 百科關鍵字
     const wikiKeyword = ENCYCLOPEDIA_KEYWORDS.find(k => msg.includes(k));
     if (wikiKeyword) {
@@ -647,7 +953,7 @@ if (isWaitingForAbnormality) {
 
 
     await new Promise(r => setTimeout(r, 800));
-    await appendAiMessage(`你今天的感覺比較接近哪一種呢？\n請直接點選下列 ①、②、③、④、⑤ 按鈕回饋~`);
+    await appendAiMessage(`你今天的感覺比較接近哪一種呢？\n請直接點選下方 ①、②、③、④、⑤ 按鈕回饋~幫助我優化你的健康模型。`);
     appendStatusOptions(); // 啟動問卷流程
     return;
 }
@@ -826,10 +1132,8 @@ async function fetchSummaryData(targetDate) {
         
         const allData = await response.json();
 
-        // 確保排序正確並取出目標日與前一次紀錄
-        healths = allData
-            .sort((a, b) => b.record_date.localeCompare(a.record_date))
-            .slice(0, 2);
+        // 確保排序正確
+        healths = allData.sort((a, b) => b.record_date.localeCompare(a.record_date));
 
     } catch (err) {
         console.error("讀取個人資料發生錯誤:", err);
@@ -844,6 +1148,9 @@ async function fetchSummaryData(targetDate) {
     const current = healths[0];
     const raw = current.raw_json;
     const currentBattery = raw.Personal_Battery_weighted_round || 0;
+
+    // 【新增】：切出最近 7 筆歷史資料供圖表使用
+    const history7 = healths.slice(0, 7);
 
     // --- 2. 抓取全體資料 (計算排名用)：僅請求目標日期當天數據，體積最小 ---
     let allUsersData = [];
@@ -864,12 +1171,47 @@ async function fetchSummaryData(targetDate) {
 
     // 計算排名百分比
     let percentage = 0;
+    let sampleSize = 0;
+
     if (allUsersData && allUsersData.length > 0) {
-        const totalUsers = allUsersData.length;
-        const lowerUsers = allUsersData.filter(d => 
-            (d.raw_json?.Personal_Battery_weighted_round || 0) < currentBattery
-        ).length;
-        percentage = Math.round((lowerUsers / totalUsers) * 100);
+        const uniqueUsersMap = new Map();
+
+        allUsersData.forEach(d => {
+            // 1. 雙重保險：確保這筆資料的日期跟我們要查的日期「完全一致」
+            // (防止地端 API 沒濾乾淨，把其他天的資料也混進來)
+            if (d.record_date !== current.record_date) return;
+
+            // 2. 清理與檢查序號 (加上 .trim() 避免空白干擾，例如 "A001" 跟 " A001 " 算成不同人)
+            const serial = (d.serial_number || (d.raw_json && d.raw_json.serial_number) || "").toString().trim();
+            const isInvalidSerial = !serial || serial === "未對應帳號" || serial.toLowerCase() === "null";
+            
+            // 3. 嚴格檢查數值：利用 parseFloat 確保它是個「真正的數字」
+            // 這個方法超好用，能把 JSON 中可能出現的 "null"、"NaN"、"" (空字串) 一次踢掉
+            const batteryVal = d.raw_json && d.raw_json.Personal_Battery_weighted_round;
+            const parsedVal = parseFloat(batteryVal);
+            const hasValidBattery = !isNaN(parsedVal);
+
+            // 4. 如果是有效帳號且有真實數據，才加進 Map 中去重複
+            if (!isInvalidSerial && hasValidBattery) {
+                if (!uniqueUsersMap.has(serial)) {
+                    uniqueUsersMap.set(serial, d);
+                }
+            }
+        });
+
+        // 將過濾後且不重複的名單轉換回陣列
+        const validUsersData = Array.from(uniqueUsersMap.values());
+
+        // 計算真正的有效「人數」
+        sampleSize = validUsersData.length;
+
+        // 計算登入者超過的百分比 (比較時也確保雙方都是數字型態)
+        if (sampleSize > 0) {
+            const lowerUsers = validUsersData.filter(d => 
+                parseFloat(d.raw_json.Personal_Battery_weighted_round) < parseFloat(currentBattery)
+            ).length;
+            percentage = Math.round((lowerUsers / sampleSize) * 100);
+        }
     }
 
     // --- 3. 指標增減比較邏輯 (與前一次數據比較) ---
@@ -910,15 +1252,15 @@ async function fetchSummaryData(targetDate) {
         date: current.record_date.replace(/-/g, '/'), 
         battery: currentBattery, 
         percentage: percentage, 
+        sampleSize: sampleSize, // 👈 這裡新增：把計算好的樣本數一起回傳
         light: statusLight, 
         bestText: phrases.find(p => p.logic_key === `${FIELD_CONFIG[bestKey]}最佳`)?.detailed_content || "表現不錯！",
         worstText: phrases.find(p => p.logic_key === `${FIELD_CONFIG[worstKey]}最差`)?.detailed_content || "這部分可留意。",
         raw_json: raw, 
-        flowSuggestion: phrases.find(p => p.logic_key === `${FIELD_CONFIG[worstKey]}最差${randomIdx}`)?.detailed_content 
+        flowSuggestion: phrases.find(p => p.logic_key === `${FIELD_CONFIG[worstKey]}最差${randomIdx}`)?.detailed_content,
+        history7: history7 // 【新增】：包進回傳物件中
     };
 }
-
-
 
 // --- 確保 showSummaryFlow 也能正確運作 ---
 async function showSummaryFlow(isFirstTime = false) { 
@@ -936,19 +1278,17 @@ async function showSummaryFlow(isFirstTime = false) {
     }
 }
 
-
-
-
 // --- 趨勢圖專用函數庫 ---
 
 function appendTrendOptions() {
     const options = [
         { name: "📊 完整圖表", type: "all" },
         { name: "📈 恢復指數", type: "battery" },
-        { name: "😴 深睡期 (N3)", type: "n3" },
-        { name: "🧘 rMSSD", type: "rmssd" },
+        { name: "❤️‍ 靜息心率", type: "rhr" },
+        { name: "🌙 深睡期 (N3)", type: "n3" },
+        { name: "🌿 rMSSD", type: "rmssd" },
         { name: "💓 睡眠最低脈搏", type: "hrmin" },
-        { name: "☁️ HBI 低氧負擔指數", type: "hbi" }
+        { name: "🫁 HBI 低氧負擔指數", type: "hbi" }
     ];
     let html = '<div class="msg-row ai-row" id="trend-options-container"><div style="display:flex; flex-wrap:wrap; gap:8px; width:100%; max-width:400px;">';
     options.forEach(opt => html += `<button class="action-btn" onclick="startTrendFlow('${opt.type}', '${opt.name}')">${opt.name}</button>`);
@@ -1070,7 +1410,7 @@ if (healthData.length === 0) {
 
     const container = card.querySelector('.trend-content');
     container.innerHTML = ''; 
-    const typesToRender = type === 'all' ? ['battery', 'n3', 'rmssd', 'hrmin', 'hbi'] : [type];
+    const typesToRender = type === 'all' ? ['battery', 'rhr', 'n3', 'rmssd', 'hrmin', 'hbi'] : [type];
     
     for (const t of typesToRender) {
         const chartBox = document.createElement('div');
@@ -1087,7 +1427,7 @@ if (healthData.length === 0) {
 function drawSingleChart(container, type, rawData, subjectiveMap = {}) {
     const config = {
         battery: { title: "恢復指數", unit: "", field: "Personal_Battery_weighted_round", color: "#596b75", abnormalLabel: "當日數值低於個人平均" },
-     
+        rhr: { title: "靜息心率", unit: "單位：bpm", field: "RHR_raw", color: "#596b75", abnormalLabel: "高於個人平均範圍" },
         n3: { title: "深睡期 (N3)", unit: "單位：%", field: "N3_pct", color: "#596b75", abnormalLabel: "低於個人平均/參考標準" },
         rmssd: { title: "rMSSD", unit: "單位：ms", field: "rMSSD", color: "#596b75", abnormalLabel: "低於個人平均範圍" },
         hrmin: { title: "睡眠最低脈搏", unit: "單位：bpm", field: "HR_min", color: "#596b75", abnormalLabel: "高於個人平均範圍" },
@@ -1098,7 +1438,7 @@ function drawSingleChart(container, type, rawData, subjectiveMap = {}) {
     // --- 【修改：動態決定日期標籤與體感數據對齊】 ---
     const labels = rawData.map(d => {
         let displayDate = d.record_date;
-        if (type === 'battery') {
+        if (type === 'battery' || type === 'rhr') {
             let dateObj = new Date(d.record_date + 'T00:00:00');
             dateObj.setDate(dateObj.getDate() + 1);
             displayDate = dateObj.toLocaleDateString('en-CA');
@@ -1108,7 +1448,7 @@ function drawSingleChart(container, type, rawData, subjectiveMap = {}) {
 
     // 準備體感數據：battery 對齊隔天，其餘對齊當天
     const subjectiveValues = rawData.map(d => {
-        if (type === 'battery') {
+        if (type === 'battery' || type === 'rhr') {
             // 恢復指數要對齊「隔天」的體感
             let dateObj = new Date(d.record_date + 'T00:00:00');
             dateObj.setDate(dateObj.getDate() + 1);
@@ -1140,14 +1480,18 @@ const dailyValues = rawData.map(d => Number(d.raw_json[config.field]) || 0);
             movingAvgs.push(avg); lowerBounds.push(avg * 0.9); upperBounds.push(avg * 1.1);
         } else if (type === 'hrmin') {
             movingAvgs.push(avg); lowerBounds.push(avg - 5); upperBounds.push(avg + 5);
+        } else if (type === 'rhr') {
+            movingAvgs.push(avg); lowerBounds.push(avg - 5); upperBounds.push(avg + 5);
         } else {
             movingAvgs.push(type === 'hbi' ? parseFloat(avg.toFixed(1)) : Math.round(avg));
+        
         }
     });
 
     const pointColors = dailyValues.map((v, i) => {
         const ma = movingAvgs[i];
         if (type === 'battery' && v < ma) return '#ff8c73';
+        if (type === 'rhr' && v > upperBounds[i]) return '#ff8c73';
         if (type === 'n3' && (v < ma || v < 10)) return '#ff8c73';
         if (type === 'rmssd' && v < lowerBounds[i]) return '#ff8c73';
         if (type === 'hrmin' && v > upperBounds[i]) return '#ff8c73';
@@ -1219,7 +1563,7 @@ const dailyValues = rawData.map(d => Number(d.raw_json[config.field]) || 0);
 
 
 
-    if (type === 'rmssd' || type === 'hrmin') {
+    if (type === 'rmssd' || type === 'hrmin' || type === 'rhr') {
         datasets.push({
             type: 'bar',
             data: rawData.map((_, i) => [lowerBounds[i], upperBounds[i]]),
@@ -1260,7 +1604,7 @@ const dailyValues = rawData.map(d => Number(d.raw_json[config.field]) || 0);
 }
 
 function renderLegend(type, abnormalLabel) {
-    const isRange = (type === 'rmssd' || type === 'hrmin');
+    const isRange = (type === 'rmssd' || type === 'hrmin' || type === 'rhr');
     let html = `
         <div class="legend-row"><div class="dot-sample" style="background:#596b75"></div> 當日數值</div>
         <div class="legend-row"><div class="bar-sample" style="background:#c1cdd3"></div> 7日平均${isRange?'範圍':''}</div>
@@ -1462,7 +1806,6 @@ function showDateActions(type, metricConfig = null) {
     scrollToBottom();
 }
 
-
 function appendSummaryCard(dateTitle, data) {
     const colors = data.battery >= 95 ? "#596b75" : data.battery >= 80 ? "#8699a3" : data.battery >= 60 ? "#a79d8c" : "#ff8c73";
     const lightMap = { '紅燈': '#dc0000', '黃紅燈': '#f06400', '黃燈': '#ffb400', '綠燈': '#018837' };
@@ -1474,11 +1817,102 @@ const dailyTag = data.raw_json && data.raw_json.Daily_Tag;
                      ? '#ff8c73' 
                      : '#8699a3';
 
+    // 依據傳入的日期標題，動態計算圖表所需的 M/D 標籤格式
+    const cleanDateStr = dateTitle.replace(/\//g, '-');
+    const dObj = new Date(cleanDateStr + 'T00:00:00');
+    const labelChart1 = `${String(dObj.getMonth() + 1).padStart(2, '0')}/${String(dObj.getDate()).padStart(2, '0')}`;
+    
+    const prevDObj = new Date(dObj);
+    prevDObj.setDate(prevDObj.getDate() - 1);
+    const labelCharts2To5 = `${String(prevDObj.getMonth() + 1).padStart(2, '0')}/${String(prevDObj.getDate()).padStart(2, '0')}`;
 
+    // 建立 5 個全新設計、適合閱讀的簡易趨勢圖表 HTML
+    let miniChartsRowsHtml = '';
+    if (data.history7 && data.history7.length > 0) {
+        // 反轉陣列，讓圖表由左到右呈現「舊到新」的趨勢
+        const trendData = [...data.history7].reverse();
+        
+        // 加入 checkAbnormal 函數，用來判斷圓點何時要變成橘紅色 (#FF8C73)
+        const chartConfigs = [
+            { title: "靜息心率", field: "RHR_raw", unit: "bpm", dateLabel: labelChart1, checkAbnormal: (val, avg) => val > avg },
+            { title: "深睡期 (N3)", field: "N3_pct", unit: "%", dateLabel: labelCharts2To5, checkAbnormal: (val, avg) => val < avg },
+            { title: "rMSSD", field: "rMSSD", unit: "ms", dateLabel: labelCharts2To5, checkAbnormal: (val, avg) => val < avg },
+            { title: "睡眠最低脈搏", field: "HR_min", unit: "bpm", dateLabel: labelCharts2To5, checkAbnormal: (val, avg) => val > avg },
+            { title: "HBI 低氧負擔指數", field: "HBI", unit: "%min/h", dateLabel: labelCharts2To5, checkAbnormal: (val, avg) => val > avg }
+        ];
+
+        chartConfigs.forEach(cfg => {
+            const pts = trendData.map(d => d.raw_json ? d.raw_json[cfg.field] : null).filter(v => v !== undefined && v !== null);
+            
+            let currValStr = '--';
+            let avgValStr = '--';
+            let svgHtml = '';
+
+            if (pts.length > 0) {
+                const latestVal = pts[pts.length - 1];
+                // 直接使用原始數據，不進行四捨五入
+                currValStr = latestVal.toString();
+                
+                // 計算平均值後，四捨五入到小數點第 1 位
+                const avg = pts.reduce((a, b) => a + b, 0) / pts.length;
+                avgValStr = avg.toFixed(1);
+
+                // 計算 SVG 繪圖 Y 軸上下限比例
+                let min = Math.min(...pts, avg);
+                let max = Math.max(...pts, avg);
+                if (max === min) { max += 1; min -= 1; }
+                const padding = (max - min) * 0.3 || 2;
+                const yMin = min - padding;
+                const yMax = max + padding;
+
+                // 微調 X 與 Y 的分佈，留出底部空間給放大的日期字體
+                const getX = (i) => 15 + (i * (190 / Math.max(1, pts.length - 1)));
+                const getY = (val) => 33 - ((val - yMin) / (yMax - yMin)) * 22;
+
+                // 繪製圓點：套用判斷邏輯變更顏色
+                let svgCircles = '';
+                pts.forEach((pt, idx) => {
+                    const dotColor = cfg.checkAbnormal(pt, avg) ? "#8699a3" : "var(--tbp-blue)";
+                    svgCircles += `<circle cx="${getX(idx)}" cy="${getY(pt)}" r="5.5" fill="${dotColor}" stroke="#ffffff" stroke-width="1.2" />`;
+                });
+
+                const yAvg = getY(avg);
+                svgHtml = `
+                    <svg viewBox="0 0 220 60" style="width:100%; height:100%; overflow:visible;">
+                        <line x1="5" y1="${yAvg}" x2="215" y2="${yAvg}" stroke="#FFB4A3" stroke-width="2.2" stroke-dasharray="4,3" />
+                        ${svgCircles}
+                        <text x="${getX(pts.length - 1)}" y="55" font-size="13" font-weight="bold" fill="#666" text-anchor="middle">${cfg.dateLabel}</text>
+                    </svg>
+                `;
+            }
+
+            // 卡片式排版
+            miniChartsRowsHtml += `
+                <div class="mini-chart-item" style="background: #faf9f6; border-radius: 12px; padding: 12px; margin: 10px 0; border: 1px solid #eee;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                        <div style="font-size: 0.92rem; font-weight: bold; color: #444;">${cfg.title}</div>
+                        <div style="text-align: right;">
+                            <span style="font-size: 1.15rem; font-weight: bold; color: #222;">${currValStr}</span>
+                            <span style="font-size: 0.75rem; color: #666; margin-left: 2px;">${cfg.unit}</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="flex: 1; height: 60px; position: relative;">
+                            ${svgHtml}
+                        </div>
+                        <div style="width: 75px; text-align: right; border-left: 1px dashed #e2ddd4; padding-left: 8px; shrink: 0;">
+                            <div style="font-size: 0.68rem; color: #999; text-align: right; white-space: nowrap;">7日平均</div>
+                            <div style="font-size: 0.95rem; font-weight: bold; color: var(--accent-red); text-align: right; white-space: nowrap;">${avgValStr} <span style="font-size:0.7rem; font-weight:normal;">${cfg.unit}</span></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+    }
     
  document.getElementById('chat-history').innerHTML += `
         <div class="msg-row ai-row">
-            <div class="summary-card" onclick="zoomChart(this)">
+            <div class="summary-card">
                 <div class="summary-header">
                     <span>📅 ${dateTitle} 健康摘要</span>
                    <span style="color:${lightMap[data.light] || '#ccc'}; display: flex; align-items: center;">
@@ -1500,21 +1934,36 @@ const dailyTag = data.raw_json && data.raw_json.Daily_Tag;
                         <span>恢復指數</span>
                         <div style="text-align: right;">
                             <span class="battery-val" style="color:${colors}">${data.battery}</span><br>
-                            <span class="rank-text">超過 ${data.percentage}% 的使用者</span>
+                            <span class="rank-text">超過 ${data.percentage}% 的使用者 (樣本數 ${data.sampleSize} 人)</span>
                         </div>
                     </div>
                     <div class="progress-bg">
                         <div class="progress-fill" style="width:${data.battery}%; background:${colors}"></div>
                     </div>
                 </div>
+
+                <div class="toggle-charts-btn" onclick="event.stopPropagation(); toggleMiniChartsRows(this);" style="text-align: center; margin: 12px 0 6px 0; cursor: pointer; color: var(--tbp-blue); font-size: 1.1rem; padding: 6px 0; border-top: 1px solid #f0ede6;">
+                    <span class="toggle-text" style="font-size: 0.85rem; font-weight: bold; margin-right: 4px; vertical-align: middle;">查看近期指標趨勢</span><span class="toggle-icon" style="vertical-align: middle;">▼</span>
+                </div>
+
+                <div class="mini-charts-wrapper hidden" onclick="event.stopPropagation();" style="padding: 2px 0; margin-bottom: 12px;">
+                    ${miniChartsRowsHtml}
+                </div>
                 
                 <div class="analysis-capsule capsule-best"><span class="capsule-icon">😊</span><div>${data.bestText}</div></div>
                 <div class="analysis-capsule capsule-worst"><span class="capsule-icon">😟</span><div>${data.worstText}</div></div>
+
+<!-- 新增：睡眠報告 PDF 下載按鈕 -->
+<div style="margin: 20px 0 5px 0;">
+    <button class="primary-btn" style="background-color: var(--tbp-blue); color: white; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; border-radius: 20px;" onclick="event.stopPropagation(); openSleepReport('${data.date}');">
+        📄 開啟睡眠報告
+    </button>
+</div>
+
             </div>
         </div>`; 
     scrollToBottom();
 }
-
 
     function appendStatusOptions() {
         const options = [{text:"① 像是沒睡一樣，頭昏，只想賴床", val:50}, {text:"② 睡了，但還是覺得很累", val:60}, {text:"③ 與平常無異，沒特別好，也不算差", val:75}, {text:"④ 醒來就覺得不錯，腦袋清楚", val:85}, {text:"⑤ 精神飽滿，對今天有期待感", val:95}];
@@ -1575,53 +2024,216 @@ async function handleStatusSelection(text, score) {
     appendAbnormalityOptions();
 }
     
-
 async function handleAbnormalityInput(msg) { 
-const todayStr = getLocalDateString(); 
+    const todayStr = getLocalDateString(); 
 
-// 如果是從「其他」按鈕進入的，格式化文字為 其他(XXX)
+    // 如果是從「其他」按鈕進入的，格式化文字為 其他(XXX)
     let finalAbnormalityText = msg;
     if (isOtherAbnormality) {
         finalAbnormalityText = `其他(${msg})`;
         isOtherAbnormality = false; // 儲存後重置標記
     }
 
+    await _supabase.from('user_daily_surveys').upsert({ 
+        serial_number: currentSerial, 
+        record_date: todayStr, 
+        subjective_score: tempScore, 
+        physical_abnormality: finalAbnormalityText
+    }); 
 
-await _supabase.from('user_daily_surveys').upsert({ 
-serial_number: currentSerial, 
-record_date: todayStr, 
-subjective_score: tempScore, 
-physical_abnormality: finalAbnormalityText
-}); 
+    localStorage.setItem(`last_summary_${currentSerial}`, todayStr); 
 
-localStorage.setItem(`last_summary_${currentSerial}`, todayStr); 
+    // --- 🐛 修正重點在這裡 ---
+    // 因為「昨晚」的睡眠數據，在地端 JSON 的日期其實是「昨天」
+    // 所以我們要把今天的日期往前推一天，再拿去要資料
+    const dateObj = new Date(todayStr.replace(/-/g, '/'));
+    dateObj.setDate(dateObj.getDate() - 1);
+    const preDateStr = dateObj.toLocaleDateString('en-CA'); // 變成昨天的格式
 
-// 2. 檢查當天是否有健康摘要數據
-    const data = await fetchSummaryData(todayStr);
-if (data) {
-await appendAiMessage("收到了！來看看健康摘要吧！ ✨"); 
+    // 2. 用「前一天」的日期去檢查健康摘要數據
+    let allData = [];
+    try {
+        const params = new URLSearchParams({ serial: currentSerial }).toString();
+        const response = await fetch(`/api/health?${params}`);
+        if (response.ok) {
+            allData = await response.json();
+            // 確保資料以日期降冪排序 (最新日期在最前)
+            allData.sort((a, b) => b.record_date.localeCompare(a.record_date));
+        }
+    } catch(e) {
+        console.error("讀取健康資料失敗:", e);
+    }
 
-// 顯示圖卡
-        appendSummaryCard(data);
+    // 檢查昨天 (preDateStr) 的資料，以及 Battery_TST_min_A 是否有值
+    const yesterdayData = allData.find(d => d.record_date === preDateStr);
+    const hasYesterdayBatteryTST = yesterdayData?.raw_json?.Battery_TST_min_A !== undefined && yesterdayData?.raw_json?.Battery_TST_min_A !== null;
 
-// 顯示後續建議與導引
+
+    // ==========================================
+    // 情境 A：當天 -1 的 Battery_TST_min_A 有資料
+    // ==========================================
+    if (hasYesterdayBatteryTST) {
+        const data = await fetchSummaryData(preDateStr);
+        if (data) {
+        await appendAiMessage("收到了！來看看今天的健康摘要吧！ ✨"); 
+
+        // 顯示圖卡 (這裡還是要傳 todayStr，確保畫面上卡片標題顯示為"今天")
+        appendSummaryCard(todayStr, data);
+
+        // 顯示後續建議與導引
         if (data.flowSuggestion) {
             await new Promise(r => setTimeout(r, 1000));
             await appendAiMessage(data.flowSuggestion);
             await new Promise(r => setTimeout(r, 800));
             await appendAiMessage(CTA_PHRASES[Math.floor(Math.random() * CTA_PHRASES.length)]);
+            }
+            return; // 結束流程
         }
+    }
+    // ==========================================
+    // 情境 B：當天 -1 的 Battery_TST_min_A 沒有資料
+    // ==========================================
+    
+    // 1. 如果資料庫完全沒資料，或是只剩 1 筆(沒有前一天的歷史可以比較)
+    if (allData.length <= 1) {
+        await appendAiMessage("收到了！😊 現在想從哪個部分開始了解呢？");
+        return;
+    }
+
+    const latestData = allData[0]; // 擷取資料庫中最新的那一筆
+    const pastData = allData.slice(1); // 剩下的歷史數據
+    const fields = ['TST_min', 'N3_pct', 'rMSSD', 'HBI', 'HR_min'];
+    let baseline = {};
+
+    // 2. 決定比較基準：有3天歷史就算平均，沒有3天就只抓前一天
+    if (pastData.length >= 3) {
+        const recent3 = pastData.slice(0, 3);
+        fields.forEach(f => {
+            let sum = 0, count = 0;
+            recent3.forEach(d => {
+                if (d.raw_json && d.raw_json[f] !== undefined) {
+                    sum += Number(d.raw_json[f]);
+                    count++;
+                }
+            });
+            // 按照實際有數據的天數來除以取得平均值
+            baseline[f] = count > 0 ? sum / count : null;
+        });
     } else {
-        // 狀況 B：沒數據 (直接顯示您指定的引導文字)
-        await appendAiMessage("收到了！😊 今天想從哪裡開始呢？趨勢圖表、還是健康摘要呢？");
+        // 沒有3天的平均值可以比較，則與前一天比較
+        const prev1 = pastData[0];
+        fields.forEach(f => {
+            baseline[f] = (prev1.raw_json && prev1.raw_json[f] !== undefined) ? Number(prev1.raw_json[f]) : null;
+        });
+    }
+
+    // 3. 找出差異(惡化)最多的指標
+    let maxDeviation = -Infinity;
+    let worstMetric = null;
+    const currentRaw = latestData.raw_json || {};
+
+    fields.forEach(f => {
+        const currentVal = currentRaw[f];
+        const baseVal = baseline[f];
+
+        if (currentVal !== undefined && baseVal !== null && baseVal !== 0) {
+            let deviation = 0;
+            // 將差異轉換為百分比幅度，以便不同單位的指標能公平比較
+            if (f === 'TST_min' || f === 'N3_pct' || f === 'rMSSD') {
+                // 越低越差：(基準值 - 當前值) / 基準值 => 正值越大代表下降越多
+                deviation = (baseVal - currentVal) / Math.abs(baseVal);
+            } else if (f === 'HBI' || f === 'HR_min') {
+                // 越高越差：(當前值 - 基準值) / 基準值 => 正值越大代表上升越多
+                deviation = (currentVal - baseVal) / Math.abs(baseVal);
+            }
+
+            if (deviation > maxDeviation) {
+                maxDeviation = deviation;
+                worstMetric = f;
+            }
+        }
+    });
+
+    // 4. 如果因為缺少數值算不出任何比較結果，直接顯示 fallback
+    if (!worstMetric) {
+        await appendAiMessage("收到了！😊 現在想從哪個部分開始了解呢？");
+        return;
+    }
+
+    // 5. 轉換為 phrase_library 對應的 logic_key 前綴
+    const metricPrefixMap = {
+        'TST_min': 'Battery 總睡眠時間',
+        'N3_pct': 'Battery N3',
+        'rMSSD': 'Battery rMSSD',
+        'HBI': 'Battery HBI',
+        'HR_min': 'Battery 最低脈搏'
+    };
+
+    const prefix = metricPrefixMap[worstMetric];
+    const randomNum = Math.floor(Math.random() * 3) + 1; // 隨機 1、2、3
+    const logicKey = `${prefix}最差${randomNum}`;
+
+    try {
+        const { data: phraseData } = await _supabase
+            .from('phrase_library')
+            .select('detailed_content')
+            .eq('logic_key', logicKey)
+            .limit(1)
+            .maybeSingle();
+
+        if (phraseData && phraseData.detailed_content) {
+            // --- 修改這裡：先說一句話，然後推派小卡 ---
+            await appendAiMessage(`收到了！😊 幫你分析了一下最近的數據：`);
+            
+            // 呼叫簡易小卡 function
+            appendSimpleSummaryCard(worstMetric, phraseData.detailed_content);
+            
+            // 小卡出現後，再給一個引導
+            await new Promise(r => setTimeout(r, 1000));
+            await appendAiMessage("目前還沒有恢復指數的分析，但上面的觀察也很有參考價值。現在想了解哪一部分呢？");
+        } else {
+            await appendAiMessage("收到了！😊 現在想從哪個部分開始了解呢？");
+        }
+    } catch (e) {
+        console.error("讀取 phrase_library 失敗:", e);
+        await appendAiMessage("收到了！😊 現在想從哪個部分開始了解呢？");
     }
 }
-
-
-
+function toggleMiniChartsRows(btn) {
+    const wrapper = btn.nextElementSibling;
+    const icon = btn.querySelector('.toggle-icon');
+    const txt = btn.querySelector('.toggle-text');
+    if (wrapper.classList.contains('hidden')) {
+        wrapper.classList.remove('hidden');
+        icon.innerText = '▲';
+        txt.innerText = '收合近期指標趨勢';
+    } else {
+        wrapper.classList.add('hidden');
+        icon.innerText = '▼';
+        txt.innerText = '查看近期指標趨勢';
+    }
+}
     function zoomChart(el) { document.getElementById('zoom-container').innerHTML = el.innerHTML; document.getElementById('zoom-overlay').classList.remove('hidden'); }
     function closeZoom() { document.getElementById('zoom-overlay').classList.add('hidden'); }
-    async function appendAiMessage(text) { const history = document.getElementById('chat-history'), typingId = 'typing-' + Date.now(); history.innerHTML += `<div class="msg-row ai-row" id="${typingId}"><div class="ai-bubble"><div class="typing-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div></div>`; scrollToBottom(); await new Promise(r => setTimeout(r, 800)); const typingElem = document.getElementById(typingId); if (typingElem) typingElem.querySelector('.ai-bubble').innerHTML = text.replace(/\n/g, '<br>'); scrollToBottom(); }
+    async function appendAiMessage(text) { 
+    const history = document.getElementById('chat-history'), typingId = 'typing-' + Date.now(); 
+    history.innerHTML += `<div class="msg-row ai-row" id="${typingId}"><div class="ai-bubble"><div class="typing-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div></div>`; 
+    scrollToBottom(); 
+    await new Promise(r => setTimeout(r, 800)); 
+    
+    const typingElem = document.getElementById(typingId); 
+    if (typingElem) {
+        // 1. 處理換行符號
+        let formattedText = text.replace(/\n/g, '<br>');
+        
+        // 2. 將 Markdown 連結 [名稱](網址) 轉換為 HTML 可點擊的超連結 <a>
+        formattedText = formattedText.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" style="color: #0056b3; text-decoration: underline; font-weight: bold;">$1</a>');
+        
+        // 3. 輸出到畫面上
+        typingElem.querySelector('.ai-bubble').innerHTML = formattedText;
+    }
+    scrollToBottom(); 
+}
     function appendUserMessage(msg) { document.getElementById('chat-history').innerHTML += `<div class="msg-row user-row"><div class="user-bubble">${msg}</div></div>`; scrollToBottom(); }
     function scrollToBottom() { const m = document.getElementById('main-area'); m.scrollTop = m.scrollHeight; }
     function toggleDropdown() { document.getElementById('settings-menu').classList.toggle('hidden'); }
@@ -1656,7 +2268,7 @@ async function handleGeminiTransfer(userInput) {
             appendAiMessage(aiResponse);
         } else {
             // B. 如果沒紀錄或未同意，顯示詢問介面
-            appendAiMessage("請問您是否同意讓 Soosyn AI 搜尋網路或資料庫來回答您的問題？(此操作會將您的健康資訊傳送至 AI 處理)");
+            appendAiMessage("請問您是否同意啟用 Soosyn AI 搜尋網路或資料庫來回答您的問題？(此操作會將您的健康資訊傳送至 AI 處理)");
             
             // 動態產生同意/不同意按鈕
             const chatHistory = document.getElementById('chat-history');
@@ -1730,7 +2342,7 @@ async function callGeminiAPI(prompt) {
     const targetDateStr = getTargetDate(prompt); 
 
     try {
-        const res = await fetch('/api/anything_llm_api', {
+        const res = await fetch('/api/gemini', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -1756,6 +2368,19 @@ async function callGeminiAPI(prompt) {
         const typingElem = document.getElementById(typingId);
         if (typingElem) typingElem.remove();
 
+        // 👇 新增這段：如果後端判定要畫圖，就呼叫按鈕選單
+        if (data.action === 'show_trend_options') {
+            // 使用者沒說清楚，跳出選單
+            setTimeout(() => {
+                appendTrendOptions();
+            }, 500);
+        } else if (data.action === 'show_specific_trend') {
+            // 使用者有明確指定，直接畫特定圖表 (預設顯示 7 天)
+            setTimeout(() => {
+                renderTrendCard(data.trend_type, 7);
+            }, 500);
+        }
+
         return data.text;
     } catch (err) {
         console.error("API Error:", err);
@@ -1765,7 +2390,282 @@ async function callGeminiAPI(prompt) {
     }
 }
 
+// --- 新增：取得 AI 開場白數據狀態 ---
+async function getAIGreetingPayload(serial) {
+    try {
+        const response = await fetch(`/api/health?serial=${serial}`);
+        if (!response.ok) return null;
+        
+        const allData = await response.json();
+        allData.sort((a, b) => b.record_date.localeCompare(a.record_date));
 
+        // 需要至少一筆最新和一筆歷史才能比較
+        if (allData.length < 2) return null; 
+
+        const latestData = allData[0];
+        const pastData = allData.slice(1, 4); // 取前 1~3 天歷史
+
+        // 定義指標與其好壞邏輯
+        const fields = [
+            { key: 'TST_min', higherIsBetter: true, label: '總睡眠時間' },
+            { key: 'N3_pct', higherIsBetter: true, label: '深睡比例 (N3)' },
+            { key: 'rMSSD', higherIsBetter: true, label: 'rMSSD (放鬆指數)' },
+            { key: 'HBI', higherIsBetter: false, label: '低氧負擔指數 (HBI)' },
+            { key: 'HR_min', higherIsBetter: false, label: '睡眠最低脈搏' }
+        ];
+
+        let bestMetric = null;
+        let worstMetric = null;
+        let maxImprovement = -Infinity;
+        let maxDeterioration = -Infinity;
+
+        const currentRaw = latestData.raw_json || {};
+
+        fields.forEach(f => {
+            let sum = 0, count = 0;
+            // 計算過去最多3天的平均 (僅依據實際有數值的筆數除)
+            pastData.forEach(d => {
+                const val = d.raw_json?.[f.key];
+                if (val !== undefined && val !== null) {
+                    sum += Number(val);
+                    count++;
+                }
+            });
+
+            if (count > 0 && currentRaw[f.key] !== undefined) {
+                const baseVal = sum / count;
+                const currentVal = Number(currentRaw[f.key]);
+
+                if (baseVal !== 0) {
+                    let improvementPct = 0;
+                    // 計算進步或退步幅度
+                    if (f.higherIsBetter) {
+                        improvementPct = (currentVal - baseVal) / Math.abs(baseVal);
+                    } else {
+                        improvementPct = (baseVal - currentVal) / Math.abs(baseVal);
+                    }
+
+                    if (improvementPct > maxImprovement) {
+                        maxImprovement = improvementPct;
+                        bestMetric = f;
+                    }
+                    
+                    let deteriorationPct = -improvementPct;
+                    if (deteriorationPct > maxDeterioration) {
+                        maxDeterioration = deteriorationPct;
+                        worstMetric = f;
+                    }
+                }
+            }
+        });
+
+        if (!bestMetric && !worstMetric) return null;
+
+        // 隨機決定要鼓勵(挑最好)還是關懷(挑最差)
+        const isEncourage = Math.random() > 0.5;
+        const chosenMetric = isEncourage && bestMetric ? bestMetric : worstMetric || bestMetric;
+        const statusStr = (chosenMetric === bestMetric) ? '表現良好' : '表現較差';
+
+        return {
+            metric: chosenMetric.label,
+            status: statusStr,
+            type: (chosenMetric === bestMetric) ? '鼓勵' : '關懷'
+        };
+
+    } catch (e) {
+        console.error('AI Greeting Error:', e);
+        return null;
+    }
+}
+
+// --- 新增：呼叫後端專屬開場白 API ---
+async function callGreetingAPI(name, aiName, aiData) {
+    try {
+        const res = await fetch('/api/gemini', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                serial_number: currentSerial,                
+                action: 'generate_greeting', // 透過此標記攔截
+                metric_data: aiData
+            })
+        });
+        const data = await res.json();
+        return data.text;
+    } catch (err) {
+        console.error("Greeting API Error:", err);
+        return `歡迎回來 ${name}，我是你的健康夥伴 ${aiName}。 👋\n健康是一點一滴累積的！想查看哪個資訊呢？`; 
+    }
+}
+
+function appendSimpleSummaryCard(metricName, detailedContent) {
+    const config = {
+        'TST_min': { icon: '🛌', label: '總睡眠時間', color: '#a79d8c' },
+        'N3_pct': { icon: '🌙', label: '深睡期 (N3)', color: '#a79d8c' },
+        'rMSSD': { icon: '🌿', label: 'rMSSD', color: '#a79d8c' },
+        'HBI': { icon: '🫁', label: 'HBI 低氧負擔指數', color: '#a79d8c' },
+        'HR_min': { icon: '💓', label: '睡眠最低脈搏', color: '#a79d8c' }
+    };
+
+    const style = config[metricName] || { icon: '📊', label: '健康指標', color: '#a79d8c' };
+
+    const html = `
+        <div class="ai-message-wrapper">
+            <div class="ai-message" style="max-width: 85%; padding: 15px; border-radius: 18px; border-left: 5px solid ${style.color}; background-color: #ffffff;">
+                <div style="font-weight: bold; font-size: 0.9em; color: #666; margin-bottom: 8px; display: flex; justify-content: space-between;">
+                    <span style="font-weight: bold; font-size: 1.1em;">近期睡眠分析</span>
+                    <span style="font-size: 0.9em; background: #eee; padding: 4px 10px; border-radius: 10px; white-space: nowrap;">${style.label}</span>
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <div style="font-size: 24px; margin-right: 12px;">${style.icon}</div>
+                    <div style="font-size: 0.95em; line-height: 1.4; color: #333;">
+                        ${detailedContent}
+                    </div>
+                </div>
+            </div>
+        </div>`;
+    
+    document.getElementById('chat-history').insertAdjacentHTML('beforeend', html);
+    scrollToBottom();
+}
+// --- 日曆功能 ---
+let currentCalDate = new Date();
+let availableSummaryDates = new Map();
+
+// 打開日曆並獲取有資料的日期
+async function openCalendarModal() {
+    if (!currentSerial) {
+        alert("請先登入才能查看日曆喔！");
+        return;
+    }
+    
+    // 每次打開時重置為當前月份
+    currentCalDate = new Date();
+    document.getElementById('calendar-overlay').classList.remove('hidden');
+    
+    // 渲染骨架，並顯示載入中... (可視需求)
+    renderCalendar(); 
+    
+    await fetchAvailableSummaryDates();
+    renderCalendar(); // 資料回來後重新渲染上色
+}
+
+// 關閉日曆
+function closeCalendarModal(event) {
+    if (event && event.target !== document.getElementById('calendar-overlay') && event.target.tagName !== 'BUTTON') return;
+    document.getElementById('calendar-overlay').classList.add('hidden');
+}
+
+// 向地端請求使用者的所有資料，推算出哪些日期有「健康摘要」與對應的燈號
+async function fetchAvailableSummaryDates() {
+    try {
+        const params = new URLSearchParams({ serial: currentSerial }).toString();
+        const response = await fetch(`/api/health?${params}`);
+        if (response.ok) {
+            const allData = await response.json();
+            availableSummaryDates.clear(); // 清空舊資料
+            
+            allData.forEach(d => {
+                if (d.raw_json && d.raw_json.Personal_Battery_weighted_round != null) {
+                    // 健康摘要的顯示日期 = 紀錄日期 (record_date) + 1 天
+                    const dateObj = new Date(d.record_date.replace(/-/g, '/'));
+                    dateObj.setDate(dateObj.getDate() + 1);
+                    const displayDate = dateObj.toLocaleDateString('en-CA');
+                    
+                    // 取得 raw_json 裡面的燈號，如果沒有就給空字串
+                    const light = d.raw_json.light_status || '';
+                    
+                    // 將「日期」作為 key，「燈號」作為 value 存起來
+                    availableSummaryDates.set(displayDate, light);
+                }
+            });
+        }
+    } catch (e) {
+        console.error("無法取得日曆資料，請確認地端伺服器是否開啟", e);
+    }
+}
+
+// 切換月份
+function changeMonth(offset) {
+    currentCalDate.setMonth(currentCalDate.getMonth() + offset);
+    renderCalendar();
+}
+
+// 渲染日曆畫面
+function renderCalendar() {
+    const year = currentCalDate.getFullYear();
+    const month = currentCalDate.getMonth();
+    
+    document.getElementById('calendar-month-year').innerText = `${year}年 ${month + 1}月`;
+    
+    const firstDay = new Date(year, month, 1).getDay(); // 0(日) ~ 6(六)
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    const grid = document.getElementById('calendar-grid');
+    let html = '';
+    
+    const dayHeaders = ['日', '一', '二', '三', '四', '五', '六'];
+    dayHeaders.forEach(day => {
+        html += `<div class="calendar-day-header">${day}</div>`;
+    });
+    
+    // 填補當月第一天前面的空格
+    for (let i = 0; i < firstDay; i++) {
+        html += `<div class="calendar-day empty"></div>`;
+    }
+    
+    const todayStr = getLocalDateString();
+
+// 產生每一天
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        
+        // 使用 .has() 判斷有沒有資料
+        const hasData = availableSummaryDates.has(dateStr);
+        const isToday = dateStr === todayStr;
+        
+        let classNames = 'calendar-day';
+        
+        if (hasData) {
+            classNames += ' has-data';
+            // 取出之前存好的燈號
+            const light = availableSummaryDates.get(dateStr);
+            
+            // 根據燈號加上對應的 CSS class
+            if (light === '綠燈') classNames += ' status-green';
+            else if (light === '黃燈') classNames += ' status-yellow';
+            else if (light === '黃紅燈') classNames += ' status-orange';
+            else if (light === '紅燈') classNames += ' status-red';
+            else classNames += ' status-default'; 
+            
+        } else {
+            classNames += ' disabled'; // 無資料反灰
+        }
+        
+        if (isToday) classNames += ' today';
+        
+        if (hasData) {
+            html += `<div class="${classNames}" onclick="selectCalendarDate('${dateStr}')">${day}</div>`;
+        } else {
+            html += `<div class="${classNames}">${day}</div>`;
+        }
+    }
+    
+    grid.innerHTML = html;
+}
+
+// 點選日期後執行查詢
+async function selectCalendarDate(dateStr) {
+    closeCalendarModal();
+    appendUserMessage(`查詢 ${dateStr} 健康摘要`);
+    
+    // 因為 processSummarySearch 需要傳入前一天的日期去抓資料
+    const dateObj = new Date(dateStr.replace(/-/g, '/'));
+    dateObj.setDate(dateObj.getDate() - 1);
+    const preDateStr = dateObj.toLocaleDateString('en-CA');
+    
+    await processSummarySearch(preDateStr, dateStr);
+}
 </script>
 </body>
 </html>
