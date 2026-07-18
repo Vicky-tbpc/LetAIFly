@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Soosyn 健康夥伴 n092</title>
+    <title>Soosyn 健康夥伴 n092-2</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -1941,30 +1941,27 @@ function toggleMiniChart(btn, containerId) {
     }
 }
 
-// --- 新增：產生迷你趨勢圖表與展開區塊 HTML ---
-function generateMiniChartHTML(idPrefix, title, field, history, toFixedNum, chartTypeStr, chartTitleStr) {
-    // history 是由新到舊排序的，繪圖需要由舊到新，所以先反轉
+// --- 新增：產生單一迷你趨勢圖表卡片 (純白底色卡片) ---
+function buildChartCard(title, field, history, chartTypeStr, chartTitleStr, parser, formatter) {
+    // 歷史資料新到舊，繪圖要舊到新，先反轉
     const hist = [...history].reverse(); 
     const data = hist.map(h => {
-        const val = h.raw_json?.[field];
-        return val !== undefined && val !== null ? Number(val) : null;
+        // 從 raw_json 撈取，若無則看外層
+        const rawVal = (h.raw_json && h.raw_json[field] !== undefined) ? h.raw_json[field] : h[field];
+        return parser(rawVal);
     });
 
     const validData = data.filter(v => v !== null);
     if (validData.length === 0) return '';
 
     const currentVal = validData[validData.length - 1];
-    // 處理資料天數不足 7 天的平均值計算，依實際筆數除以 length
     const sum = validData.reduce((a, b) => a + b, 0);
     const avg = sum / validData.length;
     
-    // 依照指定位數四捨五入
-    const formatVal = (v) => toFixedNum === 0 ? Math.round(v).toString() : v.toFixed(toFixedNum);
-    
-    const avgStr = formatVal(avg);
-    const currentStr = formatVal(currentVal);
+    const avgStr = formatter(avg);
+    const currentStr = formatter(currentVal);
 
-    // 簡單繪製 SVG 趨勢圖，底色設定為白色
+    // 繪製 SVG 趨勢圖
     const minVal = Math.min(...validData);
     const maxVal = Math.max(...validData);
     const range = maxVal - minVal || 1;
@@ -1973,6 +1970,7 @@ function generateMiniChartHTML(idPrefix, title, field, history, toFixedNum, char
     const width = 300;
 
     const getX = (index) => 20 + (index * ((width - 40) / Math.max(1, data.length - 1)));
+    // 數值越大，Y軸座標越小 (越上面)
     const getY = (val) => height - paddingY - ((val - minVal) / range) * (height - 2 * paddingY);
 
     const avgY = getY(avg);
@@ -1989,19 +1987,16 @@ function generateMiniChartHTML(idPrefix, title, field, history, toFixedNum, char
         }
     });
 
-    // 抓取 record_end 並轉換為 MM/DD 格式顯示日期
+    // 日期 X 軸 (抓取 record_end)
     const formatAxisDate = (d) => {
         if (!d) return '';
         const parts = d.split(/[-/]/); 
-        if (parts.length >= 3) return `${parts[1]}/${parts[2]}`;
+        if (parts.length >= 3) return `${parts[1]}/${parts[2].substring(0,2)}`;
         return d;
     };
     
-    const firstDateStr = hist[0].record_end || hist[0].record_date || '';
-    const lastDateStr = hist[hist.length - 1].record_end || hist[hist.length - 1].record_date || '';
-    
-    const firstDate = formatAxisDate(firstDateStr);
-    const lastDate = formatAxisDate(lastDateStr);
+    const firstDate = formatAxisDate(hist[0].record_end || hist[0].record_date || '');
+    const lastDate = formatAxisDate(hist[hist.length - 1].record_end || hist[hist.length - 1].record_date || '');
     
     svgHtml += `<text x="20" y="${height}" font-size="11" fill="#999" text-anchor="middle">${firstDate}</text>`;
     if (hist.length > 1) {
@@ -2009,10 +2004,7 @@ function generateMiniChartHTML(idPrefix, title, field, history, toFixedNum, char
     }
     svgHtml += `</svg>`;
 
-    // 產生唯一 ID 避免多個圖表衝突
-    const containerId = `${idPrefix}-container-${Date.now()}-${Math.floor(Math.random()*1000)}`;
-    
-    // 詳細圖表按鈕 (樣式與恢復指數區塊按鈕完全一致)
+    // 詳細圖表按鈕
     const btnHtml = `
         <div style="text-align: center; margin-top: 15px;">
             <button onclick="event.stopPropagation(); startTrendFlow('${chartTypeStr}', '${chartTitleStr}')" 
@@ -2021,34 +2013,70 @@ function generateMiniChartHTML(idPrefix, title, field, history, toFixedNum, char
     `;
 
     return `
+        <div style="background: white; border-radius: 12px; padding: 15px; margin-top: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+            <div style="display: flex; justify-content: space-between;">
+                <div>
+                    <div style="font-size: 13px; color: #5a5a5a; font-weight: bold;">${title}</div>
+                    <div style="font-size: 20px; font-weight: bold; color: #5a5a5a; margin-top: 4px;">${currentStr}</div>
+                </div>
+                <div style="text-align: right;">
+                    <div style="font-size: 13px; color: #5a5a5a; font-weight: bold;">7日平均</div>
+                    <div style="font-size: 20px; font-weight: bold; color: #ff8c73; margin-top: 4px;">${avgStr}</div>
+                </div>
+            </div>
+            ${svgHtml}
+            ${btnHtml}
+        </div>
+    `;
+}
+
+// --- 新增：將內容包覆於展開/收合容器 ---
+function buildToggleWrapper(contentHtml, idPrefix) {
+    const containerId = `${idPrefix}-container-${Date.now()}-${Math.floor(Math.random()*1000)}`;
+    return `
         <div style="margin-top: 15px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 10px;" onclick="event.stopPropagation();">
             <div style="text-align: center; color: #a79d8c; font-size: 13px; cursor: pointer; padding: 5px 0;" 
                  onclick="toggleMiniChart(this, '${containerId}')">▼ 查看原始數據</div>
-            <div id="${containerId}" class="hidden" style="background: white; border-radius: 12px; padding: 15px; margin-top: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
-                <div style="display: flex; justify-content: space-between;">
-                    <div>
-                        <div style="font-size: 13px; color: #5a5a5a; font-weight: bold;">${title}</div>
-                        <div style="font-size: 20px; font-weight: bold; color: #5a5a5a; margin-top: 4px;">${currentStr}</div>
-                    </div>
-                    <div style="text-align: right;">
-                        <div style="font-size: 13px; color: #5a5a5a; font-weight: bold;">7日平均</div>
-                        <div style="font-size: 20px; font-weight: bold; color: #ff8c73; margin-top: 4px;">${avgStr}</div>
-                    </div>
-                </div>
-                ${svgHtml}
-                ${btnHtml}
+            <div id="${containerId}" class="hidden" style="margin-top: 5px;">
+                ${contentHtml}
             </div>
         </div>
     `;
 }
 
-// --- 更新：包含 O2 與 RHR 展開區塊的 appendSummaryCard ---
+// --- 資料解析與格式化工具 ---
+const parseNum = (v) => v !== undefined && v !== null ? Number(v) : null;
+const formatRound = (v) => Math.round(v).toString();
+const format1Dec = (v) => v.toFixed(1);
+
+// 時分轉換 (總睡眠時間)
+const formatDuration = (v) => `${Math.floor(v/60)}小時${Math.round(v%60)}分鐘`;
+
+// 日期時間解析 (為了運算平均值，將時間轉為分鐘數)
+const parseTimeValue = (v, isStart) => {
+    if (!v || typeof v !== 'string') return null;
+    const timeParts = v.split(' ')[1]?.split(':');
+    if (!timeParts || timeParts.length < 2) return null;
+    let mins = parseInt(timeParts[0], 10) * 60 + parseInt(timeParts[1], 10);
+    // 若為入睡時間且早於中午12點 (跨夜)，加上 1440 分鐘以保持順序正常
+    if (isStart && mins < 720) mins += 1440; 
+    return mins;
+};
+const formatTimeStr = (v) => {
+    let rm = Math.round(v) % 1440;
+    if (rm < 0) rm += 1440;
+    let h = Math.floor(rm / 60);
+    let m = rm % 60;
+    let ampm = h < 12 ? '上午' : '下午';
+    let h12 = h % 12 || 12;
+    return `${ampm}${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+};
+
+// --- 主畫面卡片產生 ---
 function appendSummaryCard(dateTitle, data) {
     const raw = data.raw_json;
-    // 取得 7 日歷史資料 (包含今日)，若無則用當天陣列
     const history7 = data.history7 || [data];
     
-    // 4 捨 5 入與顏色判斷共用邏輯
     const getColor = (val) => {
         if (val >= 95) return "#596b75";
         if (val >= 80) return "#8699a3";
@@ -2056,20 +2084,16 @@ function appendSummaryCard(dateTitle, data) {
         return "#ff8c73";
     };
 
-    // 標題燈號邏輯
     const lightMap = { '紅燈': '#dc0000', '黃紅燈': '#f06400', '黃燈': '#ffb400', '綠燈': '#018837' };
     const statusLight = data.light || '--';
     const lightDotColor = lightMap[statusLight] || '#888';
 
-    // Daily Tag 邏輯
     const dailyTag = raw && raw.Daily_Tag;
     const tagColor = dailyTag && (dailyTag.includes('混亂') || dailyTag.includes('極端') || dailyTag.includes('疲乏') || dailyTag.includes('最差') || dailyTag.includes('發炎')) ? '#ff8c73' : '#8699a3';
 
-    // 恢復指數數值
     const batteryVal = Math.round(data.battery);
     const batteryColor = getColor(batteryVal);
 
-    // 睡眠穩定度計算公式
     const calcSleepStability = (r) => {
         if (!r) return 0;
         return Math.round(
@@ -2080,24 +2104,20 @@ function appendSummaryCard(dateTitle, data) {
         );
     };
 
-    // 當日各項數值
     const sleepVal = calcSleepStability(raw);
     const hrvVal = Math.round(raw.Battery_rMSSD_A || 0);
     const pulseVal = Math.round(raw.Battery_HR_min_A || 0);
     const o2Val = Math.round(raw.Battery_HBI_A || 0);
-    const rhrVal = Math.round(raw.RHR_raw || 0); // 確保轉整數
+    const rhrVal = Math.round(raw.RHR_raw || 0);
 
-    // 計算 7 日平均 (缺漏資料時以實際筆數處理)
     let sumSleep = 0, sumHrv = 0, sumPulse = 0, sumO2 = 0, sumRhr = 0;
     let countSleep = 0, countHrv = 0, countPulse = 0, countO2 = 0, countRhr = 0;
 
     history7.forEach(h => {
         const r = h.raw_json;
         if (!r) return;
-
         const s = calcSleepStability(r);
         if (s > 0) { sumSleep += s; countSleep++; }
-        
         if (r.Battery_rMSSD_A != null) { sumHrv += r.Battery_rMSSD_A; countHrv++; }
         if (r.Battery_HR_min_A != null) { sumPulse += r.Battery_HR_min_A; countPulse++; }
         if (r.Battery_HBI_A != null) { sumO2 += r.Battery_HBI_A; countO2++; }
@@ -2110,7 +2130,6 @@ function appendSummaryCard(dateTitle, data) {
     const avgO2 = countO2 ? sumO2 / countO2 : o2Val;
     const avgRhrRound = Math.round(countRhr ? sumRhr / countRhr : rhrVal);
 
-    // 較 7 日平均百分比文字轉換
     const getDiffText = (current, avg) => {
         if (avg === 0) return "與7日平均持平";
         const diff = Math.round(((current - avg) / avg) * 100);
@@ -2119,16 +2138,14 @@ function appendSummaryCard(dateTitle, data) {
         return "與7日平均持平";
     };
 
-    // 靜息心率 (RHR) 區間判斷邏輯
     const rhrMin = avgRhrRound - 5;
     const rhrMax = avgRhrRound + 5;
     const isRhrNormal = (rhrVal >= rhrMin && rhrVal <= rhrMax);
     const rhrDotColor = isRhrNormal ? "#ffffff" : "#ff8c73";
     const rhrDotBorder = isRhrNormal ? "2px solid #8699a3" : "2px solid #ff8c73";
     let posPct = ((rhrVal - (avgRhrRound - 15)) / 30) * 100;
-    posPct = Math.max(0, Math.min(100, posPct)); // 限制不出界
+    posPct = Math.max(0, Math.min(100, posPct));
 
-    // 繪製穩定度通用區塊 (支援 extraHtml 參數放入迷你圖表)
     const renderBlock = (title, iconName, val, diffText, color, bgColor, extraHtml = '') => `
         <div style="background-color: ${bgColor}; border-radius: 12px; padding: 15px; margin-bottom: 12px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
@@ -2148,17 +2165,26 @@ function appendSummaryCard(dateTitle, data) {
         </div>
     `;
 
-    // 產生四大區塊專屬的展開迷你圖表區塊 HTML
-    const hrvExtraHtml = generateMiniChartHTML('hrv', 'rMSSD', 'rMSSD', history7, 1, 'rmssd', '🌿 rMSSD');
-    const pulseExtraHtml = generateMiniChartHTML('pulse', '睡眠最低脈搏', 'HR_min', history7, 0, 'hrmin', '💓 睡眠最低脈搏');
-    const o2ExtraHtml = generateMiniChartHTML('o2', 'HBI低氧負擔指數', 'HBI', history7, 1, 'hbi', '🩸 HBI低氧負擔指數');
-    const rhrExtraHtml = generateMiniChartHTML('rhr', '靜息心率', 'RHR_raw', history7, 0, 'rhr', '🫀 靜息心率 (RHR)');
+    // 產生 5 個睡眠相關的子圖表，並組合在一起
+    const tstChart = buildChartCard('總睡眠時間', 'TST_min', history7, 'tst', '總睡眠時間趨勢圖表', parseNum, formatDuration);
+    const n3Chart = buildChartCard('深睡期 (N3)', 'N3_pct', history7, 'n3', '深睡期 (N3)趨勢圖表', parseNum, formatRound);
+    const onsetChart = buildChartCard('入睡規律性', 'record_start', history7, 'onset', '入睡規律性趨勢圖表', v => parseTimeValue(v, true), formatTimeStr);
+    const wakeChart = buildChartCard('醒來規律性', 'record_end', history7, 'wake', '醒來規律性趨勢圖表', v => parseTimeValue(v, false), formatTimeStr);
+    const waketimeChart = buildChartCard('睡眠清醒時間', 'wake_minutes', history7, 'waketime', '睡眠清醒時間趨勢圖表', parseNum, formatRound);
+    
+    // 將 5 個圖表包覆在同一個 toggle 裡面
+    const sleepExtraHtml = buildToggleWrapper(tstChart + n3Chart + onsetChart + wakeChart + waketimeChart, 'sleep');
+    
+    // 其他區塊的圖表
+    const hrvExtraHtml = buildToggleWrapper(buildChartCard('rMSSD', 'rMSSD', history7, 'rmssd', '🌿 rMSSD', parseNum, format1Dec), 'hrv');
+    const pulseExtraHtml = buildToggleWrapper(buildChartCard('睡眠最低脈搏', 'HR_min', history7, 'hrmin', '💓 睡眠最低脈搏', parseNum, formatRound), 'pulse');
+    const o2ExtraHtml = buildToggleWrapper(buildChartCard('HBI低氧負擔指數', 'rHBI', history7, 'hbi', '🩸 HBI低氧負擔指數', parseNum, format1Dec), 'o2');
+    const rhrExtraHtml = buildToggleWrapper(buildChartCard('靜息心率', 'RHR_raw', history7, 'rhr', '🫀 靜息心率 (RHR)', parseNum, formatRound), 'rhr');
 
     const cardHtml = `
     <div class="msg-row ai-row">
         <div class="summary-card">
             
-            <!-- 標題與燈號 -->
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f5f5f5; padding-bottom: 10px; margin-bottom: 15px;">
                 <span style="font-size: 1.1rem; color: #888; font-weight: bold;">📅 ${dateTitle} 健康摘要</span>
                 <span style="font-size: 1.1rem; color: #888; display: flex; align-items: center; gap: 6px;">
@@ -2166,7 +2192,6 @@ function appendSummaryCard(dateTitle, data) {
                 </span>
             </div>
 
-            <!-- 恢復指數區塊 -->
             <div style="margin-bottom: 25px;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
                     <span style="font-weight: bold; font-size: 1.1rem; color: #333;">恢復指數</span>
@@ -2186,13 +2211,13 @@ function appendSummaryCard(dateTitle, data) {
                 </div>
             </div>
 
-            <!-- 四項穩定度區塊 (新增血氧展開區塊) -->
-            ${renderBlock("睡眠穩定度", "sleep_stability.svg", sleepVal, getDiffText(sleepVal, avgSleep), getColor(sleepVal), "#faf9f6")}
+            <!-- 四項穩定度區塊 (新增睡眠區塊展開功能) -->
+            ${renderBlock("睡眠穩定度", "sleep_stability.svg", sleepVal, getDiffText(sleepVal, avgSleep), getColor(sleepVal), "#faf9f6", sleepExtraHtml)}
             ${renderBlock("心率變異 (HRV) 穩定度", "hrv_stability.svg", hrvVal, getDiffText(hrvVal, avgHrv), getColor(hrvVal), "#faf9f6", hrvExtraHtml)}
             ${renderBlock("脈搏穩定度", "pulse_stability.svg", pulseVal, getDiffText(pulseVal, avgPulse), getColor(pulseVal), "#faf9f6", pulseExtraHtml)}
             ${renderBlock("血氧穩定度", "o2_stability.svg", o2Val, getDiffText(o2Val, avgO2), getColor(o2Val), "#faf9f6", o2ExtraHtml)}
 
-            <!-- 靜息心率 RHR 區塊 (新增展開區塊) -->
+            <!-- 靜息心率 RHR 區塊 -->
             <div style="background-color: #f8fcfc; border-radius: 12px; padding: 15px; margin-bottom: 15px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
@@ -2201,22 +2226,16 @@ function appendSummaryCard(dateTitle, data) {
                     </div>
                     <span style="font-size: 1.2rem; font-weight: bold; color: #596b75;">${rhrVal}</span>
                 </div>
-                <!-- 視覺化橫軸 -->
                 <div style="position: relative; height: 24px; display: flex; align-items: center;">
-                    <!-- 灰色底線 -->
                     <div style="position: absolute; width: 100%; height: 6px; background: #e1e1e1; border-radius: 2px;"></div>
-                    <!-- 7日平均安全範圍 -->
                     <div style="position: absolute; left: 33.33%; width: 33.33%; height: 4px; background: #a0afb7; border-radius: 2px;"></div>
-                    <!-- 數值定位圓點 -->
                     <div style="position: absolute; left: calc(${posPct}% - 7px); width: 14px; height: 14px; background: ${rhrDotColor}; border: ${rhrDotBorder}; border-radius: 50%; box-sizing: border-box; z-index: 2;"></div>
                 </div>
-                <!-- 橫軸標籤說明 -->
                 <div style="display: flex; justify-content: space-between; font-size: 13px; color: #888; margin-top: 5px;">
                     <span>偏低</span>
                     <span>7日平均範圍 (${rhrMin}-${rhrMax})</span>
                     <span>偏高</span>
                 </div>
-                <!-- 靜息心率的迷你圖表 -->
                 ${rhrExtraHtml}
             </div>
 
