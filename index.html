@@ -1942,7 +1942,7 @@ function toggleMiniChart(btn, containerId) {
 }
 
 // --- 新增：產生單一迷你趨勢圖表卡片 (純白底色卡片) ---
-function buildChartCard(title, field, history, chartTypeStr, chartTitleStr, parser, formatter) {
+function buildChartCard(title, field, history, chartTypeStr, chartTitleStr, parser, formatter, unit = '') {
     // 歷史資料新到舊，繪圖要舊到新，先反轉
     const hist = [...history].reverse(); 
     const data = hist.map(h => {
@@ -1978,12 +1978,13 @@ function buildChartCard(title, field, history, chartTypeStr, chartTitleStr, pars
     let svgHtml = `<svg viewBox="0 0 ${width} ${height}" style="width: 100%; height: 80px; overflow: visible; margin-top: 10px; background-color: white; border-radius: 8px;">`;
     
     // 平均橫線 (#ff8c73)
-    svgHtml += `<line x1="10" y1="${avgY}" x2="${width-10}" y2="${avgY}" stroke="#ff8c73" stroke-width="1.5" />`;
+    const lineOffset = 20;
+    svgHtml += `<line x1="10" y1="${avgY}" x2="${width-10}" y2="${avgY}" stroke="#ff8c73" stroke-width="2.5" stroke-dasharray="4" />`;
 
     // 數值圓點 (#8699a3)
     data.forEach((val, i) => {
         if (val !== null) {
-            svgHtml += `<circle cx="${getX(i)}" cy="${getY(val)}" r="4.5" fill="#8699a3" />`;
+            svgHtml += `<circle cx="${getX(i)}" cy="${getY(val)}" r="6.5" fill="#8699a3" />`;
         }
     });
 
@@ -2017,11 +2018,15 @@ function buildChartCard(title, field, history, chartTypeStr, chartTitleStr, pars
             <div style="display: flex; justify-content: space-between;">
                 <div>
                     <div style="font-size: 13px; color: #5a5a5a; font-weight: bold;">${title}</div>
-                    <div style="font-size: 20px; font-weight: bold; color: #5a5a5a; margin-top: 4px;">${currentStr}</div>
+                    <div style="font-size: 20px; font-weight: bold; color: #5a5a5a; margin-top: 4px;">
+                        ${currentStr}<span style="font-size: 13px; font-weight: normal; margin-left: 2px;">${unit}</span>
+                    </div>
                 </div>
                 <div style="text-align: right;">
                     <div style="font-size: 13px; color: #5a5a5a; font-weight: bold;">7日平均</div>
-                    <div style="font-size: 20px; font-weight: bold; color: #ff8c73; margin-top: 4px;">${avgStr}</div>
+                    <div style="font-size: 20px; font-weight: bold; color: #ff8c73; margin-top: 4px;">
+                        ${avgStr}<span style="font-size: 13px; font-weight: normal; margin-left: 2px;">${unit}</span>
+                    </div>
                 </div>
             </div>
             ${svgHtml}
@@ -2166,20 +2171,20 @@ function appendSummaryCard(dateTitle, data) {
     `;
 
     // 產生 5 個睡眠相關的子圖表，並組合在一起
-    const tstChart = buildChartCard('總睡眠時間', 'TST_min', history7, 'tst', '總睡眠時間趨勢圖表', parseNum, formatDuration);
-    const n3Chart = buildChartCard('深睡期 (N3)', 'N3_pct', history7, 'n3', '深睡期 (N3)趨勢圖表', parseNum, formatRound);
-    const onsetChart = buildChartCard('入睡規律性', 'record_start', history7, 'onset', '入睡規律性趨勢圖表', v => parseTimeValue(v, true), formatTimeStr);
-    const wakeChart = buildChartCard('醒來規律性', 'record_end', history7, 'wake', '醒來規律性趨勢圖表', v => parseTimeValue(v, false), formatTimeStr);
-    const waketimeChart = buildChartCard('睡眠清醒時間', 'wake_minutes', history7, 'waketime', '睡眠清醒時間趨勢圖表', parseNum, formatRound);
+    const tstChart = buildChartCard('總睡眠時間', 'TST_min', history7, 'tst', '🛌 總睡眠時間', parseNum, formatDuration);
+    const n3Chart = buildChartCard('深睡期 (N3)', 'N3_pct', history7, 'n3', '💤 深睡期 (N3)', parseNum, formatRound, '%');
+    const onsetChart = buildChartCard('入睡規律性', 'record_start', history7, 'onset', '🌙 入睡規律性', v => parseTimeValue(v, true), formatTimeStr);
+    const wakeChart = buildChartCard('醒來規律性', 'record_end', history7, 'wake', '☀️ 醒來規律性', v => parseTimeValue(v, false), formatTimeStr);
+    const waketimeChart = buildChartCard('睡眠清醒時間', 'wake_minutes', history7, 'waketime', '⏱️ 睡眠清醒時間', parseNum, formatRound, '分鐘');
     
     // 將 5 個圖表包覆在同一個 toggle 裡面
     const sleepExtraHtml = buildToggleWrapper(tstChart + n3Chart + onsetChart + wakeChart + waketimeChart, 'sleep');
     
-    // 其他區塊的圖表
-    const hrvExtraHtml = buildToggleWrapper(buildChartCard('rMSSD', 'rMSSD', history7, 'rmssd', '🌿 rMSSD', parseNum, format1Dec), 'hrv');
-    const pulseExtraHtml = buildToggleWrapper(buildChartCard('睡眠最低脈搏', 'HR_min', history7, 'hrmin', '💓 睡眠最低脈搏', parseNum, formatRound), 'pulse');
-    const o2ExtraHtml = buildToggleWrapper(buildChartCard('HBI低氧負擔指數', 'rHBI', history7, 'hbi', '🩸 HBI低氧負擔指數', parseNum, format1Dec), 'o2');
-    const rhrExtraHtml = buildToggleWrapper(buildChartCard('靜息心率', 'RHR_raw', history7, 'rhr', '🫀 靜息心率 (RHR)', parseNum, formatRound), 'rhr');
+    // --- 其他四大穩定度區塊的圖表 ---
+    const hrvExtraHtml = buildToggleWrapper(buildChartCard('rMSSD', 'rMSSD', history7, 'rmssd', '🌿 rMSSD', parseNum, format1Dec, 'ms'), 'hrv');
+    const pulseExtraHtml = buildToggleWrapper(buildChartCard('睡眠最低脈搏', 'HR_min', history7, 'hrmin', '💓 睡眠最低脈搏', parseNum, formatRound, 'bpm'), 'pulse');
+    const o2ExtraHtml = buildToggleWrapper(buildChartCard('HBI低氧負擔指數', 'rHBI', history7, 'hbi', '🫁 HBI低氧負擔指數', parseNum, format1Dec, '%min/h'), 'o2');
+    const rhrExtraHtml = buildToggleWrapper(buildChartCard('靜息心率', 'RHR_raw', history7, 'rhr', '❤️ 靜息心率 (RHR)', parseNum, formatRound, 'bpm'), 'rhr');
 
     const cardHtml = `
     <div class="msg-row ai-row">
