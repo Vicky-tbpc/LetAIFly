@@ -2151,7 +2151,7 @@ function appendSummaryCard(dateTitle, data) {
     // 產生四大區塊專屬的展開迷你圖表區塊 HTML
     const hrvExtraHtml = generateMiniChartHTML('hrv', 'rMSSD', 'rMSSD', history7, 1, 'rmssd', '🌿 rMSSD');
     const pulseExtraHtml = generateMiniChartHTML('pulse', '睡眠最低脈搏', 'HR_min', history7, 0, 'hrmin', '💓 睡眠最低脈搏');
-    const o2ExtraHtml = generateMiniChartHTML('o2', 'HBI低氧負擔指數', 'rHBI', history7, 1, 'hbi', '🩸 HBI低氧負擔指數');
+    const o2ExtraHtml = generateMiniChartHTML('o2', 'HBI低氧負擔指數', 'HBI', history7, 1, 'hbi', '🩸 HBI低氧負擔指數');
     const rhrExtraHtml = generateMiniChartHTML('rhr', '靜息心率', 'RHR_raw', history7, 0, 'rhr', '🫀 靜息心率 (RHR)');
 
     const cardHtml = `
