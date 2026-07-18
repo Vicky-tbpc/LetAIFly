@@ -1978,7 +1978,6 @@ function buildChartCard(title, field, history, chartTypeStr, chartTitleStr, pars
     let svgHtml = `<svg viewBox="0 0 ${width} ${height}" style="width: 100%; height: 80px; overflow: visible; margin-top: 10px; background-color: white; border-radius: 8px;">`;
     
     // 平均橫線 (#ff8c73)
-    const lineOffset = 20;
     svgHtml += `<line x1="10" y1="${avgY}" x2="${width-10}" y2="${avgY}" stroke="#ff8c73" stroke-width="2.5" stroke-dasharray="4" />`;
 
     // 數值圓點 (#8699a3)
@@ -2183,7 +2182,7 @@ function appendSummaryCard(dateTitle, data) {
     // --- 其他四大穩定度區塊的圖表 ---
     const hrvExtraHtml = buildToggleWrapper(buildChartCard('rMSSD', 'rMSSD', history7, 'rmssd', '🌿 rMSSD', parseNum, format1Dec, 'ms'), 'hrv');
     const pulseExtraHtml = buildToggleWrapper(buildChartCard('睡眠最低脈搏', 'HR_min', history7, 'hrmin', '💓 睡眠最低脈搏', parseNum, formatRound, 'bpm'), 'pulse');
-    const o2ExtraHtml = buildToggleWrapper(buildChartCard('HBI低氧負擔指數', 'rHBI', history7, 'hbi', '🫁 HBI低氧負擔指數', parseNum, format1Dec, '%min/h'), 'o2');
+    const o2ExtraHtml = buildToggleWrapper(buildChartCard('HBI低氧負擔指數', 'HBI', history7, 'hbi', '🫁 HBI低氧負擔指數', parseNum, format1Dec, '%min/h'), 'o2');
     const rhrExtraHtml = buildToggleWrapper(buildChartCard('靜息心率', 'RHR_raw', history7, 'rhr', '❤️ 靜息心率 (RHR)', parseNum, formatRound, 'bpm'), 'rhr');
 
     const cardHtml = `
