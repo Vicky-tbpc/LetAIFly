@@ -2015,7 +2015,7 @@ function buildChartCard(title, field, history, chartTypeStr, chartTitleStr, pars
     `;
     const currentBlockHtml = `
         <div>
-            <div style="font-size: 13px; color: #5a5a5a; font-weight: bold;">${title}</div>
+            <div style="font-size: 15px; color: #5a5a5a; font-weight: bold;">${title}</div>
             ${hideCurrent ? '' : `
             <div style="font-size: 20px; font-weight: bold; color: #5a5a5a; margin-top: 4px;">
                 ${currentStr}<span style="font-size: 13px; font-weight: normal; margin-left: 2px;">${unit}</span>
@@ -2028,7 +2028,7 @@ function buildChartCard(title, field, history, chartTypeStr, chartTitleStr, pars
             <div style="display: flex; justify-content: space-between;">
                 ${currentBlockHtml}
                 <div style="text-align: right;">
-                    <div style="font-size: 13px; color: #5a5a5a; font-weight: bold;">7日平均</div>
+                    <div style="font-size: 15px; color: #5a5a5a; font-weight: bold;">7日平均</div>
                     <div style="font-size: 20px; font-weight: bold; color: #ff8c73; margin-top: 4px;">
                         ${avgStr}<span style="font-size: 13px; font-weight: normal; margin-left: 2px;">${unit}</span>
                     </div>
@@ -2250,7 +2250,7 @@ function appendSummaryCard(dateTitle, data) {
                     </div>
                     <div style="text-align: center;">
                         7日平均範圍<br>
-                        <span style="font-size: 16px; font-weight: bold; color: #596b75;">(${rhrMin}-${rhrMax})</span>
+                        <span style="font-size: 16px; font-weight: bold; color: #596b75;">${rhrMin} - ${rhrMax}</span>
                     </div>
                     <div style="text-align: center;">
                         偏高<br>
