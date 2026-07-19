@@ -2013,12 +2013,14 @@ function buildChartCard(title, field, history, chartTypeStr, chartTitleStr, pars
                     style="background-color: #edeae4; color: #5a5a5a; border: none; border-radius: 20px; padding: 8px 24px; font-size: 14px; cursor: pointer; font-weight: bold;">詳細圖表</button>
         </div>
     `;
-    const currentBlockHtml = hideCurrent ? '<div></div>' : `
+    const currentBlockHtml = `
         <div>
             <div style="font-size: 13px; color: #5a5a5a; font-weight: bold;">${title}</div>
+            ${hideCurrent ? '' : `
             <div style="font-size: 20px; font-weight: bold; color: #5a5a5a; margin-top: 4px;">
                 ${currentStr}<span style="font-size: 13px; font-weight: normal; margin-left: 2px;">${unit}</span>
             </div>
+            `}
         </div>
     `;
     return `
@@ -2242,13 +2244,21 @@ function appendSummaryCard(dateTitle, data) {
                     <div style="position: absolute; left: calc(${posPct}% - 7px); width: 14px; height: 14px; background: ${rhrDotColor}; border: ${rhrDotBorder}; border-radius: 50%; box-sizing: border-box; z-index: 2;"></div>
                 </div>
                 <div style="display: flex; justify-content: space-between; font-size: 13px; color: #888; margin-top: 5px;">
-                    <span>偏低</br>< ${rhrMin}</span>
-                    <span>7日平均範圍</br>(${rhrMin}-${rhrMax})</span>
-                    <span>偏高</br>> ${rhrMax}</span>
+                    <div style="text-align: center;">
+                        偏低<br>
+                        <span style="font-size: 16px; font-weight: bold; color: #596b75;">&lt; ${rhrMin}</span>
+                    </div>
+                    <div style="text-align: center;">
+                        7日平均範圍<br>
+                        <span style="font-size: 16px; font-weight: bold; color: #596b75;">(${rhrMin}-${rhrMax})</span>
+                    </div>
+                    <div style="text-align: center;">
+                        偏高<br>
+                        <span style="font-size: 16px; font-weight: bold; color: #596b75;">&gt; ${rhrMax}</span>
+                    </div>
                 </div>
                 ${rhrExtraHtml}
             </div>
-
             <!-- 原有分析與報告 -->
             <div class="analysis-capsule capsule-best">
                 <span class="capsule-icon">😊</span><span style="flex: 1;">${data.bestText}</span>
