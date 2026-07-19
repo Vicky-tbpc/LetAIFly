@@ -2189,7 +2189,7 @@ function appendSummaryCard(dateTitle, data) {
     const hrvExtraHtml = buildToggleWrapper(buildChartCard('rMSSD', 'rMSSD', history7, 'rmssd', '🌿 rMSSD', parseNum, format1Dec, 'ms'), 'hrv');
     const pulseExtraHtml = buildToggleWrapper(buildChartCard('睡眠最低脈搏', 'HR_min', history7, 'hrmin', '💓 睡眠最低脈搏', parseNum, formatRound, 'bpm'), 'pulse');
     const o2ExtraHtml = buildToggleWrapper(buildChartCard('HBI低氧負擔指數', 'HBI', history7, 'hbi', '🫁 HBI低氧負擔指數', parseNum, format1Dec, '%min/h'), 'o2');
-    const rhrExtraHtml = buildToggleWrapper(buildChartCard('靜息心率 (RHR) 7 日趨勢', 'RHR_raw', history7, 'rhr', '❤️ 靜息心率 (RHR)', parseNum, formatRound, 'bpm', true), 'rhr');
+    const rhrExtraHtml = buildToggleWrapper(buildChartCard('7 日趨勢', 'RHR_raw', history7, 'rhr', '❤️ 靜息心率 (RHR)', parseNum, formatRound, 'bpm', true), 'rhr');
 
     const cardHtml = `
     <div class="msg-row ai-row">
@@ -2213,7 +2213,7 @@ function appendSummaryCard(dateTitle, data) {
                 <div class="progress-bg" style="height: 10px; background: #eee; border-radius: 5px; margin-bottom: 8px;">
                     <div class="progress-fill" style="width: ${data.battery}%; height: 100%; background: ${batteryColor}; border-radius: 5px;"></div>
                 </div>
-                <div style="font-size: 12px; color: #888; text-align: center;">
+                <div style="font-size: 14px; color: #888; text-align: center;">
                     超過 ${data.percentage}% 的使用者 (樣本數 ${data.sampleSize} 人次)
                 </div>
                 <div style="text-align: center; margin-top: 15px;">
