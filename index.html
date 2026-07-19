@@ -2178,9 +2178,9 @@ function appendSummaryCard(dateTitle, data) {
     // 產生 5 個睡眠相關的子圖表，並組合在一起
     const tstChart = buildChartCard('總睡眠時間', 'TST_min', history7, 'tst', '🛌 總睡眠時間', parseNum, formatDuration);
     const n3Chart = buildChartCard('深睡期 (N3)', 'N3_pct', history7, 'n3', '💤 深睡期 (N3)', parseNum, formatRound, '%');
-    const onsetChart = buildChartCard('入睡規律性', 'record_start', history7, 'onset', '🌙 入睡規律性', v => parseTimeValue(v, true), formatTimeStr);
-    const wakeChart = buildChartCard('醒來規律性', 'record_end', history7, 'wake', '☀️ 醒來規律性', v => parseTimeValue(v, false), formatTimeStr);
-    const waketimeChart = buildChartCard('睡眠清醒時間', 'wake_minutes', history7, 'waketime', '⏱️ 睡眠清醒時間', parseNum, formatRound, '分鐘');
+    const onsetChart = buildChartCard('入睡規律性', 'record_start', history7, 'start', '🌙 入睡規律性', v => parseTimeValue(v, true), formatTimeStr);
+    const wakeChart = buildChartCard('醒來規律性', 'record_end', history7, 'end', '☀️ 醒來規律性', v => parseTimeValue(v, false), formatTimeStr);
+    const waketimeChart = buildChartCard('睡眠清醒時間', 'wake_minutes', history7, 'wake', '⏱️ 睡眠清醒時間', parseNum, formatRound, '分鐘');
     
     // 將 5 個圖表包覆在同一個 toggle 裡面
     const sleepExtraHtml = buildToggleWrapper(tstChart + n3Chart + onsetChart + wakeChart + waketimeChart, 'sleep');
