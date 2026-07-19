@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Soosyn 健康夥伴 n092-2</title>
+    <title>Soosyn 健康夥伴 n092-3</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -1985,7 +1985,7 @@ function buildChartCard(title, field, history, chartTypeStr, chartTitleStr, pars
     // 數值圓點 (#8699a3)
     data.forEach((val, i) => {
         if (val !== null) {
-            svgHtml += `<circle cx="${getX(i)}" cy="${getY(val)}" r="6.5" fill="#8699a3" />`;
+            svgHtml += `<circle cx="${getX(i)}" cy="${getY(val)}" r="6" fill="#8699a3" />`;
         }
     });
 
@@ -2000,9 +2000,9 @@ function buildChartCard(title, field, history, chartTypeStr, chartTitleStr, pars
     const firstDate = formatAxisDate(hist[0].record_end || hist[0].record_date || '');
     const lastDate = formatAxisDate(hist[hist.length - 1].record_end || hist[hist.length - 1].record_date || '');
     
-    svgHtml += `<text x="20" y="${height - 2}" font-size="11" fill="#999" text-anchor="middle">${firstDate}</text>`;
+    svgHtml += `<text x="20" y="${height - 2}" font-size="14" fill="#999" text-anchor="middle">${firstDate}</text>`;
     if (hist.length > 1) {
-        svgHtml += `<text x="${width-20}" y="${height - 2}" font-size="11" fill="#999" text-anchor="middle">${lastDate}</text>`;
+        svgHtml += `<text x="${width-20}" y="${height - 2}" font-size="14" fill="#999" text-anchor="middle">${lastDate}</text>`;
     }
     svgHtml += `</svg>`;
 
@@ -2055,8 +2055,8 @@ const parseNum = (v) => v !== undefined && v !== null ? Number(v) : null;
 const formatRound = (v) => Math.round(v).toString();
 const format1Dec = (v) => v.toFixed(1);
 
-// 時分轉換 (總睡眠時間)
-const formatDuration = (v) => `${Math.floor(v/60)}小時${Math.round(v%60)}分鐘`;
+// 時分轉換 (總睡眠時間) - 縮小「小時」和「分鐘」
+const formatDuration = (v) => `${Math.floor(v/60)}<span style="font-size: 13px; font-weight: normal; margin: 0 2px;">小時</span>${Math.round(v%60)}<span style="font-size: 13px; font-weight: normal; margin-left: 2px;">分鐘</span>`;
 
 // 日期時間解析 (為了運算平均值，將時間轉為分鐘數)
 const parseTimeValue = (v, isStart) => {
@@ -2075,7 +2075,7 @@ const formatTimeStr = (v) => {
     let m = rm % 60;
     let ampm = h < 12 ? '上午' : '下午';
     let h12 = h % 12 || 12;
-    return `${ampm}${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    return `<span style="font-size: 13px; font-weight: normal; margin-right: 2px;">${ampm}</span>${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 };
 
 // --- 主畫面卡片產生 ---
@@ -2159,7 +2159,7 @@ function appendSummaryCard(dateTitle, data) {
                     <img src="images/${iconName}" style="width: 20px; height: 20px;" alt="${title}">
                     <span style="font-weight: bold; color: #333;">${title}</span>
                 </div>
-                <span style="font-size: 1.2rem; font-weight: bold; color: ${color};">${val}</span>
+                <span style="font-size: 1.8rem; font-weight: bold; color: ${color};">${val}</span>
             </div>
             <div class="progress-bg" style="height: 6px; background: #eee; border-radius: 3px; margin-bottom: 8px;">
                 <div class="progress-fill" style="width: ${val}%; height: 100%; background: ${color}; border-radius: 3px;"></div>
@@ -2185,7 +2185,7 @@ function appendSummaryCard(dateTitle, data) {
     const hrvExtraHtml = buildToggleWrapper(buildChartCard('rMSSD', 'rMSSD', history7, 'rmssd', '🌿 rMSSD', parseNum, format1Dec, 'ms'), 'hrv');
     const pulseExtraHtml = buildToggleWrapper(buildChartCard('睡眠最低脈搏', 'HR_min', history7, 'hrmin', '💓 睡眠最低脈搏', parseNum, formatRound, 'bpm'), 'pulse');
     const o2ExtraHtml = buildToggleWrapper(buildChartCard('HBI低氧負擔指數', 'HBI', history7, 'hbi', '🫁 HBI低氧負擔指數', parseNum, format1Dec, '%min/h'), 'o2');
-    const rhrExtraHtml = buildToggleWrapper(buildChartCard('靜息心率', 'RHR_raw', history7, 'rhr', '❤️ 靜息心率 (RHR)', parseNum, formatRound, 'bpm'), 'rhr');
+    const rhrExtraHtml = buildToggleWrapper(buildChartCard('靜息心率 (RHR) 7 日趨勢', 'RHR_raw', history7, 'rhr', '❤️ 靜息心率 (RHR)', parseNum, formatRound, 'bpm'), 'rhr');
 
     const cardHtml = `
     <div class="msg-row ai-row">
@@ -2230,7 +2230,9 @@ function appendSummaryCard(dateTitle, data) {
                         <img src="images/rhr_icon.svg" style="width: 20px; height: 20px;" alt="靜息心率">
                         <span style="font-weight: bold; color: #333;">靜息心率 (RHR)</span>
                     </div>
-                    <span style="font-size: 1.2rem; font-weight: bold; color: #596b75;">${rhrVal}</span>
+                    <span style="font-size: 1.8rem; font-weight: bold; color: #596b75;">
+                        ${rhrVal}<span style="font-size: 13px; font-weight: normal; margin-left: 2px;">bpm</span>
+                    </span>
                 </div>
                 <div style="position: relative; height: 24px; display: flex; align-items: center;">
                     <div style="position: absolute; width: 100%; height: 6px; background: #e1e1e1; border-radius: 2px;"></div>
