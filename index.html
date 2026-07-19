@@ -1942,7 +1942,7 @@ function toggleMiniChart(btn, containerId) {
 }
 
 // --- 新增：產生單一迷你趨勢圖表卡片 (純白底色卡片) ---
-function buildChartCard(title, field, history, chartTypeStr, chartTitleStr, parser, formatter, unit = '') {
+function buildChartCard(title, field, history, chartTypeStr, chartTitleStr, parser, formatter, unit = '', hideCurrent = false) {
     // 歷史資料新到舊，繪圖要舊到新，先反轉
     const hist = [...history].reverse(); 
     const data = hist.map(h => {
@@ -2013,16 +2013,18 @@ function buildChartCard(title, field, history, chartTypeStr, chartTitleStr, pars
                     style="background-color: #edeae4; color: #5a5a5a; border: none; border-radius: 20px; padding: 8px 24px; font-size: 14px; cursor: pointer; font-weight: bold;">詳細圖表</button>
         </div>
     `;
-
+    const currentBlockHtml = hideCurrent ? '<div></div>' : `
+        <div>
+            <div style="font-size: 13px; color: #5a5a5a; font-weight: bold;">${title}</div>
+            <div style="font-size: 20px; font-weight: bold; color: #5a5a5a; margin-top: 4px;">
+                ${currentStr}<span style="font-size: 13px; font-weight: normal; margin-left: 2px;">${unit}</span>
+            </div>
+        </div>
+    `;
     return `
         <div style="background: white; border-radius: 12px; padding: 15px; margin-top: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
             <div style="display: flex; justify-content: space-between;">
-                <div>
-                    <div style="font-size: 13px; color: #5a5a5a; font-weight: bold;">${title}</div>
-                    <div style="font-size: 20px; font-weight: bold; color: #5a5a5a; margin-top: 4px;">
-                        ${currentStr}<span style="font-size: 13px; font-weight: normal; margin-left: 2px;">${unit}</span>
-                    </div>
-                </div>
+                ${currentBlockHtml}
                 <div style="text-align: right;">
                     <div style="font-size: 13px; color: #5a5a5a; font-weight: bold;">7日平均</div>
                     <div style="font-size: 20px; font-weight: bold; color: #ff8c73; margin-top: 4px;">
@@ -2185,7 +2187,7 @@ function appendSummaryCard(dateTitle, data) {
     const hrvExtraHtml = buildToggleWrapper(buildChartCard('rMSSD', 'rMSSD', history7, 'rmssd', '🌿 rMSSD', parseNum, format1Dec, 'ms'), 'hrv');
     const pulseExtraHtml = buildToggleWrapper(buildChartCard('睡眠最低脈搏', 'HR_min', history7, 'hrmin', '💓 睡眠最低脈搏', parseNum, formatRound, 'bpm'), 'pulse');
     const o2ExtraHtml = buildToggleWrapper(buildChartCard('HBI低氧負擔指數', 'HBI', history7, 'hbi', '🫁 HBI低氧負擔指數', parseNum, format1Dec, '%min/h'), 'o2');
-    const rhrExtraHtml = buildToggleWrapper(buildChartCard('靜息心率 (RHR) 7 日趨勢', 'RHR_raw', history7, 'rhr', '❤️ 靜息心率 (RHR)', parseNum, formatRound, 'bpm'), 'rhr');
+    const rhrExtraHtml = buildToggleWrapper(buildChartCard('靜息心率 (RHR) 7 日趨勢', 'RHR_raw', history7, 'rhr', '❤️ 靜息心率 (RHR)', parseNum, formatRound, 'bpm', true), 'rhr');
 
     const cardHtml = `
     <div class="msg-row ai-row">
@@ -2240,9 +2242,9 @@ function appendSummaryCard(dateTitle, data) {
                     <div style="position: absolute; left: calc(${posPct}% - 7px); width: 14px; height: 14px; background: ${rhrDotColor}; border: ${rhrDotBorder}; border-radius: 50%; box-sizing: border-box; z-index: 2;"></div>
                 </div>
                 <div style="display: flex; justify-content: space-between; font-size: 13px; color: #888; margin-top: 5px;">
-                    <span>偏低</span>
-                    <span>7日平均範圍 (${rhrMin}-${rhrMax})</span>
-                    <span>偏高</span>
+                    <span>偏低</br>< ${rhrMin}</span>
+                    <span>7日平均範圍</br>(${rhrMin}-${rhrMax})</span>
+                    <span>偏高</br>> ${rhrMax}</span>
                 </div>
                 ${rhrExtraHtml}
             </div>
