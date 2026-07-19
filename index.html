@@ -78,7 +78,7 @@
         .battery-container { margin: 15px 0; }
         .battery-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
         .battery-val { font-size: 2rem; font-weight: bold; }
-        .progress-bg { width: 100%; height: 10px; background: #eee; border-radius: 5px; overflow: hidden; }
+        .progress-bg { width: 100%; height: 10px; background: #e1e1e1; border-radius: 5px; overflow: hidden; }
         .progress-fill { height: 100%; transition: width 1s ease-in-out; border-radius: 5px; }
         .analysis-capsule { display: flex; align-items: center; padding: 12px 15px; border-radius: 16px; margin-top: 10px; font-size: 1rem; line-height: 1.5; }
         .capsule-best { background-color: #f0f8f9; color: #4a5a61; border: 1px solid #e0eff1; }
@@ -2165,7 +2165,7 @@ function appendSummaryCard(dateTitle, data) {
                 </div>
                 <span style="font-size: 1.8rem; font-weight: bold; color: ${color};">${val}</span>
             </div>
-            <div class="progress-bg" style="height: 6px; background: #eee; border-radius: 3px; margin-bottom: 8px;">
+            <div class="progress-bg" style="height: 6px; background: #e1e1e1; border-radius: 3px; margin-bottom: 8px;">
                 <div class="progress-fill" style="width: ${val}%; height: 100%; background: ${color}; border-radius: 3px;"></div>
             </div>
             <div style="font-size: 13px; color: #888; text-align: right;">
@@ -2210,7 +2210,7 @@ function appendSummaryCard(dateTitle, data) {
                 <div style="text-align: center; margin: 8px 0 8px 0; line-height: 1;">
                     <span style="font-size: 6rem; font-weight: bold; color: ${batteryColor};">${batteryVal}</span>
                 </div>
-                <div class="progress-bg" style="height: 10px; background: #eee; border-radius: 5px; margin-bottom: 8px;">
+                <div class="progress-bg" style="height: 10px; background: #e1e1e1; border-radius: 5px; margin-bottom: 8px;">
                     <div class="progress-fill" style="width: ${data.battery}%; height: 100%; background: ${batteryColor}; border-radius: 5px;"></div>
                 </div>
                 <div style="font-size: 14px; color: #888; text-align: center;">
