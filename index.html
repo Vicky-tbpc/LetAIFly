@@ -2045,7 +2045,7 @@ function buildToggleWrapper(contentHtml, idPrefix) {
     const containerId = `${idPrefix}-container-${Date.now()}-${Math.floor(Math.random()*1000)}`;
     return `
         <div style="margin-top: 15px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 10px;" onclick="event.stopPropagation();">
-            <div style="text-align: center; color: #a79d8c; font-size: 13px; cursor: pointer; padding: 5px 0;" 
+            <div style="text-align: center; color: #8699a3; font-size: 13px; cursor: pointer; padding: 5px 0;" 
                  onclick="toggleMiniChart(this, '${containerId}')">▼ 查看原始數據</div>
             <div id="${containerId}" class="hidden" style="margin-top: 5px;">
                 ${contentHtml}
@@ -2201,7 +2201,7 @@ function appendSummaryCard(dateTitle, data) {
         } else if (batteryVal >= 60 && statusLight === '黃燈') {
             alertText = `恢復指數 ${batteryVal}，發炎風險黃燈。<br>睡眠修復狀況良好，但生理狀態顯示身體可能已有輕微壓力累積。建議持續維持規律作息與良好睡眠，協助身體恢復平衡。`;
         } else if (batteryVal < 60 && statusLight === '綠燈') {
-            alertText = `恢復指數 ${batteryVal}，發炎風險綠燈。<br>近期睡眠修復不足，但目前生理狀態仍維持穩定。建議改善睡眠時間與品質，維持身體正常的修復能力。`;
+            alertText = `恢復指數 ${batteryVal}，發炎風險綠燈。<br>睡眠修復不足，但目前生理狀態仍維持穩定。建議改善睡眠時間與品質，維持身體正常的修復能力。`;
         } else if (batteryVal < 60 && statusLight === '黃燈') {
             alertText = `恢復指數 ${batteryVal}，發炎風險黃燈。<br>睡眠修復不足，且生理狀態顯示身體可能已有壓力累積。建議增加休息、提升睡眠品質，協助身體恢復正常修復狀態。`;
         } else if (batteryVal < 60 && statusLight === '紅燈') {
