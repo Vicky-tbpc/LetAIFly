@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Soosyn 健康夥伴 n089</title>
+    <title>Soosyn 健康夥伴 n090</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -2190,7 +2190,39 @@ function appendSummaryCard(dateTitle, data) {
     const pulseExtraHtml = buildToggleWrapper(buildChartCard('睡眠最低脈搏', 'HR_min', history7, 'hrmin', '💓 睡眠最低脈搏', parseNum, formatRound, 'bpm'), 'pulse');
     const o2ExtraHtml = buildToggleWrapper(buildChartCard('HBI低氧負擔指數', 'HBI', history7, 'hbi', '🫁 HBI低氧負擔指數', parseNum, format1Dec, '%min/h'), 'o2');
     const rhrExtraHtml = buildToggleWrapper(buildChartCard('7日趨勢', 'RHR_raw', history7, 'rhr', '❤️ 靜息心率 (RHR)', parseNum, formatRound, 'bpm', true), 'rhr');
+    // --- 新增：健康提醒區塊判斷邏輯 ---
+    let alertHtml = '';
+    // 條件：恢復指數 < 60 或 發炎風險為黃燈/紅燈 時才觸發
+    if (batteryVal < 60 || statusLight === '黃燈' || statusLight === '紅燈') {
+        let alertText = '';
+        
+        if (batteryVal >= 60 && statusLight === '紅燈') {
+            alertText = `恢復指數 ${batteryVal}，發炎風險紅燈。<br>表示睡眠提供了良好的身體修復，但目前生理指標顯示身體可能處於較高的發炎風險。建議維持充足睡眠與適當休息，並留意近期身體狀況是否出現變化。`;
+        } else if (batteryVal >= 60 && statusLight === '黃燈') {
+            alertText = `恢復指數 ${batteryVal}，發炎風險黃燈。<br>表示睡眠修復狀況良好，但生理指標顯示身體可能已有輕微壓力累積。建議持續維持規律作息與良好睡眠，協助身體恢復平衡。`;
+        } else if (batteryVal < 60 && statusLight === '綠燈') {
+            alertText = `恢復指數 ${batteryVal}，發炎風險綠燈。<br>表示近期睡眠修復不足，但目前生理指標仍維持穩定。建議改善睡眠時間與品質，維持身體正常的修復能力。`;
+        } else if (batteryVal < 60 && statusLight === '黃燈') {
+            alertText = `恢復指數 ${batteryVal}，發炎風險黃燈。<br>表示睡眠修復不足，且生理指標顯示身體可能已有壓力累積。建議增加休息、提升睡眠品質，協助身體恢復正常修復狀態。`;
+        } else if (batteryVal < 60 && statusLight === '紅燈') {
+            alertText = `恢復指數 ${batteryVal}，發炎風險紅燈。<br>表示睡眠修復不足，且生理指標顯示身體可能處於較高的發炎風險。建議優先安排充分休息、改善睡眠品質，並持續留意身體狀況；如有持續不適，建議諮詢醫療專業人員。`;
+        }
 
+        // 如果有符合的情境，就產生對應的 HTML (這裡設計了一個帶有側邊黃色條的提醒框，你也可以自己改顏色)
+        if (alertText !== '') {
+            alertHtml = `
+                <div style="background-color: #fffdf8; border-radius: 12px; padding: 15px; margin-bottom: 15px; border-left: 4px solid #ffb400; box-shadow: 0 1px 5px rgba(0,0,0,0.05);">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                        <span style="font-size: 1.2rem;">💡</span>
+                        <span style="font-weight: bold; color: #d97706;">健康提醒</span>
+                    </div>
+                    <div style="font-size: 14px; color: #5a5a5a; line-height: 1.6;">
+                        ${alertText}
+                    </div>
+                </div>
+            `;
+        }
+    }
     const cardHtml = `
     <div class="msg-row ai-row">
         <div class="summary-card">
@@ -2220,7 +2252,7 @@ function appendSummaryCard(dateTitle, data) {
                     <button onclick="startTrendFlow('battery', '📈 恢復指數')" style="background-color: #edeae4; color: #5a5a5a; border: none; border-radius: 20px; padding: 8px 24px; font-size: 14px; cursor: pointer; font-weight: bold;">詳細圖表</button>
                 </div>
             </div>
-
+            ${alertHtml}
             <!-- 四項穩定度區塊 (新增睡眠區塊展開功能) -->
             ${renderBlock("睡眠穩定度", "sleep_stability.svg", sleepVal, getDiffText(sleepVal, avgSleep), getColor(sleepVal), "#faf9f6", sleepExtraHtml)}
             ${renderBlock("心率變異 (HRV) 穩定度", "hrv_stability.svg", hrvVal, getDiffText(hrvVal, avgHrv), getColor(hrvVal), "#faf9f6", hrvExtraHtml)}
