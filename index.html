@@ -2236,9 +2236,22 @@ function appendSummaryCard(dateTitle, data) {
 
             <div style="margin-bottom: 25px;">
                 <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-weight: bold; font-size: 1.1rem; color: #333;">恢復指數</span>
+                    <!-- 將標題與 info 按鈕包在一起 -->
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-weight: bold; font-size: 1.1rem; color: #333;">恢復指數</span>
+                        <img src="images/info_icon.svg" alt="說明" style="width: 18px; height: 18px; cursor: pointer;" 
+                             onclick="const info = document.getElementById('battery-info-${data.date}'); info.style.display = info.style.display === 'none' ? 'block' : 'none'; event.stopPropagation();">
+                    </div>
                     ${dailyTag ? `<span class="daily-tag-pill" style="background-color: ${tagColor}; font-size: 14px; padding: 4px 10px;">${dailyTag}</span>` : ''}
                 </div>
+                
+                <!-- 新增：隱藏的說明區塊 -->
+                <div id="battery-info-${data.date}" style="display: none; background-color: #f8fcfc; border: 1px solid #e1e1e1; border-radius: 8px; padding: 12px; margin-top: 10px; font-size: 13px; color: #5a5a5a; line-height: 1.6; text-align: left;">
+                    <span style="font-weight: bold; color: #333;">恢復指數</span>就像身體健康的「晴雨表」，依據睡眠品質評估睡眠期間的身體修復程度，反映身體恢復能力。<br><br>
+                    <span style="font-weight: bold; color: #333;">發炎風險</span>就像身體健康的「天氣警報」，依據生理指標變化評估身體可能處於發炎或其他生理壓力狀態的風險，並以綠、黃、紅燈呈現。<br><br>
+                    當晴雨表長期顯示不佳時，代表身體修復能力下降；若同時出現黃色或紅色警報，表示身體可能正承受較高的生理壓力，建議及早調整作息、增加休息並持續觀察身體狀況。
+                </div>
+
                 <div style="text-align: center; margin: 8px 0 8px 0; line-height: 1;">
                     <span style="font-size: 6rem; font-weight: bold; color: ${batteryColor};">${batteryVal}</span>
                 </div>
