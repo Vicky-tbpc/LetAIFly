@@ -868,7 +868,7 @@ const healthConfigs = []; // 這樣就不會報錯，只是不會比對到任何
     const isDefinitionQuery = msg.includes("什麼是") || msg.includes("？") || msg.includes("?");
 
  // --- 睡眠平衡度 ---
-    if ((msg.includes("")) && !isDefinitionQuery) {
+    if ((msg.includes(""))) {
         if (hasAnyDate) processBalanceSearch(targetDateStr);
         else { await appendAiMessage("📊 想查看哪一天的睡眠平衡度呢？"); showDateActions('balance'); }
         return;
