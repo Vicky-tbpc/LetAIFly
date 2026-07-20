@@ -624,7 +624,7 @@ function getRandomEndQuestion() {
         "我會與你一起建立好習慣！✨ 一步一步邁向更健康的生活！現在想從哪個部分開始了解呢？",
         "🌟 維持健康的好習慣很重要！讓我們一起穩定前進吧！想查看哪個資訊呢？"
     ];
-    const ENCYCLOPEDIA_KEYWORDS = [];
+    const ENCYCLOPEDIA_KEYWORDS = ["什麼是睡眠平衡", "睡眠平衡度?", "睡眠平衡?", "睡眠平衡度？", "睡眠平衡？"];
 
 async function login() {
     const serial = document.getElementById('serial').value;
@@ -868,7 +868,7 @@ const healthConfigs = []; // 這樣就不會報錯，只是不會比對到任何
     const isDefinitionQuery = msg.includes("什麼是") || msg.includes("？") || msg.includes("?");
 
  // --- 睡眠平衡度 ---
-    if ((msg.includes(""))) {
+    if ((msg.includes("睡眠平衡")) && !isDefinitionQuery) {
         if (hasAnyDate) processBalanceSearch(targetDateStr);
         else { await appendAiMessage("📊 想查看哪一天的睡眠平衡度呢？"); showDateActions('balance'); }
         return;
