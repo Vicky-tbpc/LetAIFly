@@ -1508,7 +1508,7 @@ function drawSingleChart(container, type, rawData, subjectiveMap = {}, days) {
         if (type === 'hrmin' && v > allUpperBounds[i]) return '#ff8c73';
         if ((type === 'start' || type === 'end') && (v > allUpperBounds[i] || v < allLowerBounds[i])) return '#ff8c73';
         if (type === 'hbi' && v > ma) return '#ff8c73';
-        if (type === 'rhr' && v > ma) return '#ff8c73';
+        if (type === 'wake' && v > ma) return '#ff8c73';
         if (type === 'tst' && (v < ma || v < 420)) return '#ff8c73';
         return config.color;
     });
@@ -2188,7 +2188,7 @@ function appendSummaryCard(dateTitle, data) {
     // --- 其他四大穩定度區塊的圖表 ---
     const hrvExtraHtml = buildToggleWrapper(buildChartCard('rMSSD', 'rMSSD', history7, 'rmssd', '🌿 rMSSD', parseNum, format1Dec, 'ms'), 'hrv');
     const pulseExtraHtml = buildToggleWrapper(buildChartCard('睡眠最低脈搏', 'HR_min', history7, 'hrmin', '💓 睡眠最低脈搏', parseNum, formatRound, 'bpm'), 'pulse');
-    const o2ExtraHtml = buildToggleWrapper(buildChartCard('HBI低氧負擔指數', 'HBI', history7, 'hbi', '🫁 HBI低氧負擔指數', parseNum, format1Dec, '%min/h'), 'o2');
+    const o2ExtraHtml = buildToggleWrapper(buildChartCard('HBI 低氧負擔指數', 'HBI', history7, 'hbi', '🫁 HBI 低氧負擔指數', parseNum, format1Dec, '%min/h'), 'o2');
     const rhrExtraHtml = buildToggleWrapper(buildChartCard('7日趨勢', 'RHR_raw', history7, 'rhr', '❤️ 靜息心率 (RHR)', parseNum, formatRound, 'bpm', true), 'rhr');
     // --- 新增：健康提醒區塊判斷邏輯 ---
     let alertHtml = '';
