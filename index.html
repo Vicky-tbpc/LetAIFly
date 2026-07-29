@@ -1153,41 +1153,7 @@ async function fetchSummaryData(targetDate) {
     const history7 = healths.slice(0, 7);
 
     // --- 2. 抓取全體資料 (計算排名用)：讀取所有歷史資料 (不分日期) ---
-    let allUsersData = [];
-    try {
-        // 移除日期參數，獲取所有的資料作為全域樣本
-        const rankRes = await fetch(`/api/health`);
-        if (rankRes.ok) {
-            allUsersData = await rankRes.json();
-        }
-    } catch (err) {
-        console.error("計算排名時讀取失敗:", err);
-    }
-
-    // 計算排名百分比
-    let percentage = 0;
-    let sampleSize = 0;
-
-    if (allUsersData && allUsersData.length > 0) {
-        // 過濾出所有具備有效恢復指數 (Personal_Battery_weighted_round) 的資料，
-        // 不做帳號去重，確保算入所有的「數據筆數」
-        const validRecords = allUsersData.filter(d => {
-            const batteryVal = d.raw_json && d.raw_json.Personal_Battery_weighted_round;
-            const parsedVal = parseFloat(batteryVal);
-            return !isNaN(parsedVal);
-        });
-
-        // 計算真正的有效「樣本數 (筆數)」
-        sampleSize = validRecords.length;
-
-        // 計算當日數值超過了全域多少筆數據
-        if (sampleSize > 0) {
-            const lowerUsers = validRecords.filter(d => 
-                parseFloat(d.raw_json.Personal_Battery_weighted_round) < parseFloat(currentBattery)
-            ).length;
-            percentage = Math.round((lowerUsers / sampleSize) * 100);
-        }
-    }
+    
 
     // --- 3. 指標增減比較邏輯 (與前一次數據比較) ---
     let bestKey = COMPARISON_FIELDS[0], worstKey = COMPARISON_FIELDS[0];
@@ -1226,8 +1192,6 @@ async function fetchSummaryData(targetDate) {
     return { 
         date: current.record_date.replace(/-/g, '/'), 
         battery: currentBattery, 
-        percentage: percentage, 
-        sampleSize: sampleSize, // 👈 這裡新增：把計算好的樣本數一起回傳
         light: statusLight, 
         bestText: phrases.find(p => p.logic_key === `${FIELD_CONFIG[bestKey]}最佳`)?.detailed_content || "表現不錯！",
         worstText: phrases.find(p => p.logic_key === `${FIELD_CONFIG[worstKey]}最差`)?.detailed_content || "這部分可留意。",
@@ -1929,38 +1893,12 @@ function showDateActions(type, metricConfig = null) {
     scrollToBottom();
 }
 
-// 全域快取：避免重複向 app.py 請求相同的歷史資料
-const historyCache = {};
-
-// --- 修改：支援按需繪製/載入的折疊功能 ---
-async function toggleMiniChart(btn, containerId, serialNumber, renderCallback) {
+// --- 新增：收合/展開迷你圖表功能 ---
+function toggleMiniChart(btn, containerId) {
     const container = document.getElementById(containerId);
-    
     if (container.classList.contains('hidden')) {
         container.classList.remove('hidden');
         btn.innerText = '▲ 收合原始數據';
-
-        // 如果尚未渲染過，才開始抓取資料與繪製圖表
-        if (!container.dataset.rendered) {
-            container.innerHTML = `<div style="text-align:center; padding: 10px; color: #888;">載入中...</div>`;
-            
-            try {
-                // 1. 檢查是否有快取，沒有才用 serial_number 向 app.py 請求歷史資料
-                let history7 = historyCache[serialNumber];
-                if (!history7) {
-                    const res = await fetch(`/api/get_history?serial_number=${serialNumber}`);
-                    const json = await res.json();
-                    history7 = json.history7 || [];
-                    historyCache[serialNumber] = history7; // 寫入快取
-                }
-
-                // 2. 執行渲染 callback 繪製圖表
-                container.innerHTML = renderCallback(history7);
-                container.dataset.rendered = "true"; // 標記已渲染，下次展開不重複發送請求
-            } catch (err) {
-                container.innerHTML = `<div style="text-align:center; color: #ff8c73;">載入歷史資料失敗</div>`;
-            }
-        }
     } else {
         container.classList.add('hidden');
         btn.innerText = '▼ 查看原始數據';
@@ -2066,44 +2004,18 @@ function buildChartCard(title, field, history, chartTypeStr, chartTitleStr, pars
     `;
 }
 
-// --- 修改：改為延遲載入容器，不預先生成內容 ---
-function buildToggleWrapper(idPrefix, serialNumber, renderType) {
+// --- 新增：將內容包覆於展開/收合容器 ---
+function buildToggleWrapper(contentHtml, idPrefix) {
     const containerId = `${idPrefix}-container-${Date.now()}-${Math.floor(Math.random()*1000)}`;
-    
     return `
         <div style="margin-top: 15px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 10px;" onclick="event.stopPropagation();">
             <div style="text-align: center; color: #8699a3; font-size: 13px; cursor: pointer; padding: 5px 0;" 
-                 onclick="toggleMiniChart(this, '${containerId}', '${serialNumber}', (hist) => renderLazyCharts('${renderType}', hist))">
-                ▼ 查看原始數據
+                 onclick="toggleMiniChart(this, '${containerId}')">▼ 查看原始數據</div>
+            <div id="${containerId}" class="hidden" style="margin-top: 5px;">
+                ${contentHtml}
             </div>
-            <div id="${containerId}" class="hidden" style="margin-top: 5px;"></div>
         </div>
     `;
-}
-
-// 根據展開的類型，才開始執行 buildChartCard
-function renderLazyCharts(renderType, history7) {
-    if (renderType === 'sleep') {
-        const tstChart = buildChartCard('總睡眠時間', 'TST_min', history7, 'tst', '🛌 總睡眠時間', parseNum, formatDuration);
-        const n3Chart = buildChartCard('深睡期 (N3)', 'N3_pct', history7, 'n3', '💤 深睡期 (N3)', parseNum, formatRound, '%');
-        const onsetChart = buildChartCard('入睡規律性', 'record_start', history7, 'start', '🌙 入睡規律性', v => parseTimeValue(v, true), formatTimeStr);
-        const wakeChart = buildChartCard('醒來規律性', 'record_end', history7, 'end', '☀️ 醒來規律性', v => parseTimeValue(v, false), formatTimeStr);
-        const waketimeChart = buildChartCard('睡眠清醒時間', 'wake_minutes', history7, 'wake', '⏱️ 睡眠清醒時間', parseNum, formatRound, '分鐘');
-        return tstChart + n3Chart + onsetChart + wakeChart + waketimeChart;
-    }
-    if (renderType === 'hrv') {
-        return buildChartCard('rMSSD', 'rMSSD', history7, 'rmssd', '🌿 rMSSD', parseNum, format1Dec, 'ms');
-    }
-    if (renderType === 'pulse') {
-        return buildChartCard('睡眠最低脈搏', 'HR_min', history7, 'hrmin', '💓 睡眠最低脈搏', parseNum, formatRound, 'bpm');
-    }
-    if (renderType === 'o2') {
-        return buildChartCard('HBI 低氧負擔指數', 'HBI', history7, 'hbi', '🫁 HBI 低氧負擔指數', parseNum, format1Dec, '%min/h');
-    }
-    if (renderType === 'rhr') {
-        return buildChartCard('7日趨勢', 'RHR_raw', history7, 'rhr', '❤️ 靜息心率 (RHR)', parseNum, formatRound, 'bpm', true);
-    }
-    return '';
 }
 
 // --- 資料解析與格式化工具 ---
@@ -2238,14 +2150,22 @@ function appendSummaryCard(dateTitle, data) {
             ${extraHtml}
         </div>
     `;
-    // 在 appendSummaryCard 裡面改為這樣調用：
-const serialNo = data.serial_number || data.id;
 
-const sleepExtraHtml = buildToggleWrapper('sleep', serialNo, 'sleep');
-const hrvExtraHtml = buildToggleWrapper('hrv', serialNo, 'hrv');
-const pulseExtraHtml = buildToggleWrapper('pulse', serialNo, 'pulse');
-const o2ExtraHtml = buildToggleWrapper('o2', serialNo, 'o2');
-const rhrExtraHtml = buildToggleWrapper('rhr', serialNo, 'rhr');
+    // 產生 5 個睡眠相關的子圖表，並組合在一起
+    const tstChart = buildChartCard('總睡眠時間', 'TST_min', history7, 'tst', '🛌 總睡眠時間', parseNum, formatDuration);
+    const n3Chart = buildChartCard('深睡期 (N3)', 'N3_pct', history7, 'n3', '💤 深睡期 (N3)', parseNum, formatRound, '%');
+    const onsetChart = buildChartCard('入睡規律性', 'record_start', history7, 'start', '🌙 入睡規律性', v => parseTimeValue(v, true), formatTimeStr);
+    const wakeChart = buildChartCard('醒來規律性', 'record_end', history7, 'end', '☀️ 醒來規律性', v => parseTimeValue(v, false), formatTimeStr);
+    const waketimeChart = buildChartCard('睡眠清醒時間', 'wake_minutes', history7, 'wake', '⏱️ 睡眠清醒時間', parseNum, formatRound, '分鐘');
+    
+    // 將 5 個圖表包覆在同一個 toggle 裡面
+    const sleepExtraHtml = buildToggleWrapper(tstChart + n3Chart + onsetChart + wakeChart + waketimeChart, 'sleep');
+    
+    // --- 其他四大穩定度區塊的圖表 ---
+    const hrvExtraHtml = buildToggleWrapper(buildChartCard('rMSSD', 'rMSSD', history7, 'rmssd', '🌿 rMSSD', parseNum, format1Dec, 'ms'), 'hrv');
+    const pulseExtraHtml = buildToggleWrapper(buildChartCard('睡眠最低脈搏', 'HR_min', history7, 'hrmin', '💓 睡眠最低脈搏', parseNum, formatRound, 'bpm'), 'pulse');
+    const o2ExtraHtml = buildToggleWrapper(buildChartCard('HBI 低氧負擔指數', 'HBI', history7, 'hbi', '🫁 HBI 低氧負擔指數', parseNum, format1Dec, '%min/h'), 'o2');
+    const rhrExtraHtml = buildToggleWrapper(buildChartCard('7日趨勢', 'RHR_raw', history7, 'rhr', '❤️ 靜息心率 (RHR)', parseNum, formatRound, 'bpm', true), 'rhr');
     // --- 新增：健康提醒區塊判斷邏輯 ---
     let alertHtml = '';
     // 條件：恢復指數 < 60 或 發炎風險為黃燈/紅燈 時才觸發
