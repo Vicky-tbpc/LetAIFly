@@ -1154,7 +1154,6 @@ async function fetchSummaryData(targetDate) {
 
     // --- 2. 抓取全體資料 (計算排名用)：讀取所有歷史資料 (不分日期) ---
     
-
     // --- 3. 指標增減比較邏輯 (與前一次數據比較) ---
     let bestKey = COMPARISON_FIELDS[0], worstKey = COMPARISON_FIELDS[0];
     if (healths[1]) {
@@ -2080,6 +2079,41 @@ function appendSummaryCard(dateTitle, data) {
         </div>`;
     }
 
+    // --- 新增：處理個人恢復區間邏輯 ---
+    let batteryStateHtml = '';
+    const personalBatteryState = raw && raw.Personal_Battery_state !== undefined ? raw.Personal_Battery_state : null;
+    
+    if (personalBatteryState !== null) {
+        let leftColor = '#e1e1e1', midColor = '#e1e1e1', rightColor = '#e1e1e1';
+        let stateText = '';
+
+        if (personalBatteryState === 0) {
+            leftColor = '#ff8c73';
+            stateText = '個人恢復不足區間';
+        } else if (personalBatteryState === 1) {
+            midColor = '#a79d8c';
+            stateText = '個人穩定恢復區間';
+        } else if (personalBatteryState === 2) {
+            rightColor = '#8699a3';
+            stateText = '個人最佳恢復區間';
+        }
+
+        if (stateText !== '') {
+            batteryStateHtml = `
+            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin-bottom: 10px;">
+                <div style="display: flex; gap: 8px; margin-bottom: 4px;">
+                    <div style="width: 10px; height: 10px; border-radius: 50%; background-color: ${leftColor};"></div>
+                    <div style="width: 10px; height: 10px; border-radius: 50%; background-color: ${midColor};"></div>
+                    <div style="width: 10px; height: 10px; border-radius: 50%; background-color: ${rightColor};"></div>
+                </div>
+                <div style="font-size: 13px; color: #5a5a5a; font-weight: bold;">
+                    ${stateText}
+                </div>
+            </div>`;
+        }
+    }
+    // ------------------------------------
+
     const calcSleepStability = (r) => {
         if (!r) return 0;
         return Math.round(
@@ -2231,6 +2265,10 @@ function appendSummaryCard(dateTitle, data) {
                 <div style="text-align: center; margin: 8px 0 8px 0; line-height: 1;">
                     <span style="font-size: 6rem; font-weight: bold; color: ${batteryColor};">${batteryVal}</span>
                 </div>
+
+                <!-- 這是我們新加入的恢復區間區塊 -->
+                ${batteryStateHtml}
+
                 <div class="progress-bg" style="height: 10px; background: #e1e1e1; border-radius: 5px; margin-bottom: 8px;">
                     <div class="progress-fill" style="width: ${data.battery}%; height: 100%; background: ${batteryColor}; border-radius: 5px;"></div>
                 </div>
