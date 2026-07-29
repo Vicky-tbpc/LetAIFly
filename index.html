@@ -2104,8 +2104,17 @@ function appendSummaryCard(dateTitle, data) {
     const batteryVal = Math.round(data.battery);
     const batteryColor = getColor(batteryVal);
     
-    const allBatteryPct = (raw && raw["ALL_Battery_percentage"] !== undefined) ? raw["ALL_Battery_percentage"] : (data.percentage || 0);
-    const attendanceCount = (raw && raw["number of attendance"] !== undefined) ? raw["number of attendance"] : (data.sampleSize || 0);
+    const allBatteryPct = (raw && raw["ALL_Battery_percentage"] != null) ? raw["ALL_Battery_percentage"] : null;
+    const attendanceCount = (raw && raw["number of attendance"] != null) ? raw["number of attendance"] : null;
+
+    // 判斷是否要顯示百分比文字
+    let pctHtml = '';
+    if (allBatteryPct !== null && attendanceCount !== null) {
+        pctHtml = `
+        <div style="font-size: 14px; color: #888; text-align: center; margin-bottom: 8px;">
+            超過 ${allBatteryPct}% 的使用者 (樣本數 ${attendanceCount} 人次)
+        </div>`;
+    }
 
     const calcSleepStability = (r) => {
         if (!r) return 0;
@@ -2261,9 +2270,7 @@ function appendSummaryCard(dateTitle, data) {
                 <div class="progress-bg" style="height: 10px; background: #e1e1e1; border-radius: 5px; margin-bottom: 8px;">
                     <div class="progress-fill" style="width: ${data.battery}%; height: 100%; background: ${batteryColor}; border-radius: 5px;"></div>
                 </div>
-                <div style="font-size: 14px; color: #888; text-align: center;">
-                    超過 ${allBatteryPct}% 的使用者 (樣本數 ${attendanceCount} 人次)
-                </div>
+                ${pctHtml}
                 <div style="text-align: center; margin-top: 15px;">
                     <button onclick="startTrendFlow('battery', '📈 恢復指數')" style="background-color: #edeae4; color: #5a5a5a; border: none; border-radius: 20px; padding: 8px 24px; font-size: 14px; cursor: pointer; font-weight: bold;">詳細圖表</button>
                 </div>
