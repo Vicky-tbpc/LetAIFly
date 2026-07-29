@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Soosyn 健康夥伴 n090</title>
+    <title>Soosyn 健康夥伴 n091</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -2079,7 +2079,7 @@ const formatTimeStr = (v) => {
     let m = rm % 60;
     let ampm = h < 12 ? '上午' : '下午';
     let h12 = h % 12 || 12;
-    return `<span style="font-size: 13px; font-weight: normal; margin-right: 2px;">${ampm}</span>${String(h12).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    return `<span style="font-size: 13px; font-weight: normal; margin-right: 2px;">${ampm}</span>${h12}:${String(m).padStart(2, '0')}`;
 };
 
 // --- 主畫面卡片產生 ---
@@ -2103,6 +2103,9 @@ function appendSummaryCard(dateTitle, data) {
 
     const batteryVal = Math.round(data.battery);
     const batteryColor = getColor(batteryVal);
+    
+    const allBatteryPct = (raw && raw["ALL_Battery_percentage"] !== undefined) ? raw["ALL_Battery_percentage"] : (data.percentage || 0);
+    const attendanceCount = (raw && raw["number of attendance"] !== undefined) ? raw["number of attendance"] : (data.sampleSize || 0);
 
     const calcSleepStability = (r) => {
         if (!r) return 0;
@@ -2259,7 +2262,7 @@ function appendSummaryCard(dateTitle, data) {
                     <div class="progress-fill" style="width: ${data.battery}%; height: 100%; background: ${batteryColor}; border-radius: 5px;"></div>
                 </div>
                 <div style="font-size: 14px; color: #888; text-align: center;">
-                    超過 ${data.percentage}% 的使用者 (樣本數 ${data.sampleSize} 人次)
+                    超過 ${allBatteryPct}% 的使用者 (樣本數 ${attendanceCount} 人次)
                 </div>
                 <div style="text-align: center; margin-top: 15px;">
                     <button onclick="startTrendFlow('battery', '📈 恢復指數')" style="background-color: #edeae4; color: #5a5a5a; border: none; border-radius: 20px; padding: 8px 24px; font-size: 14px; cursor: pointer; font-weight: bold;">詳細圖表</button>
@@ -2688,7 +2691,7 @@ async function callGeminiAPI(prompt) {
     const targetDateStr = getTargetDate(prompt); 
 
     try {
-        const res = await fetch('/api/gemini_02', {
+        const res = await fetch('/api/gemini', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -2827,7 +2830,7 @@ async function getAIGreetingPayload(serial) {
 // --- 新增：呼叫後端專屬開場白 API ---
 async function callGreetingAPI(name, aiName, aiData) {
     try {
-        const res = await fetch('/api/gemini_02', {
+        const res = await fetch('/api/gemini', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
