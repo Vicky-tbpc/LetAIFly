@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Soosyn 健康夥伴 n091-2</title>
+    <title>Soosyn 健康夥伴 n091-3</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -1151,38 +1151,118 @@ async function fetchSummaryData(targetDate) {
 
     // 【新增】：切出最近 7 筆歷史資料供圖表使用
     const history7 = healths.slice(0, 7);
-
-    // --- 2. 抓取全體資料 (計算排名用)：讀取所有歷史資料 (不分日期) ---
     
-    // --- 3. 指標增減比較邏輯 (與前一次數據比較) ---
-    let bestKey = COMPARISON_FIELDS[0], worstKey = COMPARISON_FIELDS[0];
+    // --- 3. 新版指標增減比較邏輯 ---
+    let finalCapsules = [];
+    let flowSuggestionText = null;
+
     if (healths[1]) {
-        let maxInc = -Infinity, maxDec = Infinity;
         const prevRaw = healths[1].raw_json;
-        
-        COMPARISON_FIELDS.forEach(k => {
-            const diff = (raw[k] || 0) - (prevRaw[k] || 0);
-            if (diff > maxInc) { maxInc = diff; bestKey = k; }
-            if (diff < maxDec) { maxDec = diff; worstKey = k; }
-        });
-    }
 
-    // --- 4. 從資料庫獲取對應建議語 ---
-    const randomIdx = Math.floor(Math.random() * 3) + 1;
-    const logicKeys = [
-        `${FIELD_CONFIG[bestKey]}最佳`, 
-        `${FIELD_CONFIG[worstKey]}最差`, 
-        `${FIELD_CONFIG[worstKey]}最差${randomIdx}`
-    ];
-    
-    let phrases = [];
-    try {
-        const { data } = await _supabase.from('phrase_library')
-            .select('logic_key, detailed_content')
-            .in('logic_key', logicKeys);
-        phrases = data || [];
-    } catch (err) {
-        console.error("Supabase 讀取失敗:", err);
+        // 定義計算四項指標分數的函式
+        const getIndicators = (r) => {
+            if (!r) return { sleep: 0, hrv: 0, pulse: 0, o2: 0 };
+            return {
+                sleep: Math.round(
+                    (r.Battery_TST_min_A || 0) * 0.36 +
+                    (r.Battery_N3_pct_A || 0) * 0.36 +
+                    (r.Battery_OnsetDev_min_A || 0) * 0.09 +
+                    (r.Battery_wake_minutes_A || 0) * 0.18
+                ),
+                hrv: Math.round(r.Battery_rMSSD_A || 0),
+                pulse: Math.round(r.Battery_HR_min_A || 0),
+                o2: Math.round(r.Battery_HBI_A || 0)
+            };
+        };
+
+        const curInd = getIndicators(raw);
+        const prevInd = getIndicators(prevRaw);
+
+        // 指標對應的 Logic Key 字首
+        const metrics = [
+            { key: 'sleep', prefix: 'S' },
+            { key: 'hrv', prefix: 'H' },
+            { key: 'pulse', prefix: 'P' },
+            { key: 'o2', prefix: 'O' }
+        ];
+
+        // 計算差異與狀態
+        let statuses = metrics.map(m => {
+            const diff = curInd[m.key] - prevInd[m.key];
+            let status = 'stable';
+            
+            // 差異 < 3 持平，>= 3 進步，<= -3 退步
+            if (diff >= 3) status = 'progress';
+            else if (diff <= -3) status = 'regress';
+            
+            return { ...m, diff, status };
+        });
+
+        // 分類進步與退步的指標
+        const progresses = statuses.filter(s => s.status === 'progress');
+        const regresses = statuses.filter(s => s.status === 'regress');
+
+        // 找出進步最多與退步最多的指標
+        let bestProgress = progresses.length > 0 ? progresses.reduce((max, s) => s.diff > max.diff ? s : max) : null;
+        let worstRegress = regresses.length > 0 ? regresses.reduce((min, s) => s.diff < min.diff ? s : min) : null;
+
+        // 判斷情境與需要抓取的 logic_key
+        let logicKeysToFetch = [];
+        let scenario = '';
+
+        if (progresses.length === 0 && regresses.length === 0) {
+            // 情境四：全部持平
+            scenario = 'all_stable';
+            logicKeysToFetch.push('全平');
+        } else if (progresses.length > 0 && regresses.length > 0) {
+            // 情境三：有進步、有退步
+            scenario = 'mixed';
+            logicKeysToFetch.push(`${bestProgress.prefix}進`);
+            logicKeysToFetch.push(`${worstRegress.prefix}退`);
+        } else if (progresses.length > 0 && regresses.length === 0) {
+            // 情境二、五：有進步，無退步
+            scenario = 'progress_only';
+            logicKeysToFetch.push(`${bestProgress.prefix}進`);
+        } else if (regresses.length > 0 && progresses.length === 0) {
+            // 情境一、六：有退步，無進步
+            scenario = 'regress_only';
+            logicKeysToFetch.push(`${worstRegress.prefix}退`);
+        }
+
+        // --- 4. 從資料庫獲取對應建議語 ---
+        // 保留隨機建議邏輯給 flowSuggestion 使用 (可依你的實際需求調整)
+        const randomIdx = Math.floor(Math.random() * 3) + 1;
+        const fallbackFlowKey = worstRegress ? `${worstRegress.prefix}退${randomIdx}` : `全平${randomIdx}`;
+        logicKeysToFetch.push(fallbackFlowKey);
+
+        let phrases = [];
+        try {
+            const { data } = await _supabase.from('phrase_library')
+                .select('logic_key, detailed_content')
+                .in('logic_key', logicKeysToFetch);
+            phrases = data || [];
+        } catch (err) {
+            console.error("Supabase 讀取失敗:", err);
+        }
+
+        const getPhrase = (key) => phrases.find(p => p.logic_key === key)?.detailed_content;
+
+        // 依照情境組合要顯示的 UI 膠囊陣列
+        if (scenario === 'all_stable') {
+            finalCapsules.push({ type: 'best', icon: '🙂', text: getPhrase('全平') || '各項指標維持穩定，繼續保持！' });
+        } else if (scenario === 'mixed') {
+            finalCapsules.push({ type: 'best', icon: '😊', text: getPhrase(`${bestProgress.prefix}進`) || '部分指標有進步！' });
+            finalCapsules.push({ type: 'worst', icon: '😟', text: getPhrase(`${worstRegress.prefix}退`) || '部分指標有些退步，請多留意。' });
+        } else if (scenario === 'progress_only') {
+            finalCapsules.push({ type: 'best', icon: '😊', text: getPhrase(`${bestProgress.prefix}進`) || '指標表現進步！' });
+        } else if (scenario === 'regress_only') {
+            finalCapsules.push({ type: 'worst', icon: '😟', text: getPhrase(`${worstRegress.prefix}退`) || '指標表現退步，請多留意。' });
+        }
+
+        flowSuggestionText = getPhrase(fallbackFlowKey);
+    } else {
+        // 若無前一筆紀錄 (無法比較) 的預設顯示
+        finalCapsules.push({ type: 'best', icon: '🙂', text: '累積更多數據後將為你提供進退步分析。' });
     }
 
     const statusLight = raw?.light_status || '--';
@@ -1192,11 +1272,10 @@ async function fetchSummaryData(targetDate) {
         date: current.record_date.replace(/-/g, '/'), 
         battery: currentBattery, 
         light: statusLight, 
-        bestText: phrases.find(p => p.logic_key === `${FIELD_CONFIG[bestKey]}最佳`)?.detailed_content || "表現不錯！",
-        worstText: phrases.find(p => p.logic_key === `${FIELD_CONFIG[worstKey]}最差`)?.detailed_content || "這部分可留意。",
+        capsules: finalCapsules, // 傳遞陣列給 UI
         raw_json: raw, 
-        flowSuggestion: phrases.find(p => p.logic_key === `${FIELD_CONFIG[worstKey]}最差${randomIdx}`)?.detailed_content,
-        history7: history7 // 【新增】：包進回傳物件中
+        flowSuggestion: flowSuggestionText,
+        history7: history7 
     };
 }
 
@@ -2273,6 +2352,19 @@ function appendSummaryCard(dateTitle, data) {
         `;
     }
 
+    // --- 動態生成分析膠囊 (Capsules) ---
+    let capsulesHtml = '';
+    if (data.capsules && data.capsules.length > 0) {
+        data.capsules.forEach(cap => {
+            // 依據 type 決定要用哪種樣式 (capsule-best 或 capsule-worst)
+            const capsuleClass = cap.type === 'worst' ? 'capsule-worst' : 'capsule-best';
+            capsulesHtml += `
+            <div class="analysis-capsule ${capsuleClass}">
+                <span class="capsule-icon">${cap.icon}</span><span style="flex: 1;">${cap.text}</span>
+            </div>`;
+        });
+    }
+
     const cardHtml = `
     <div class="msg-row ai-row">
         <div class="summary-card">
@@ -2326,14 +2418,8 @@ function appendSummaryCard(dateTitle, data) {
 
             <!-- 替換為動態條件判斷的靜息心率 RHR 區塊 -->
             ${rhrSectionHtml}
-            
-            <!-- 原有分析與報告 -->
-            <div class="analysis-capsule capsule-best">
-                <span class="capsule-icon">😊</span><span style="flex: 1;">${data.bestText}</span>
-            </div>
-            <div class="analysis-capsule capsule-worst">
-                <span class="capsule-icon">😟</span><span style="flex: 1;">${data.worstText}</span>
-            </div>
+            <!-- 新版的動態分析與報告 -->
+            ${capsulesHtml}
             <div style="margin: 20px 0 5px 0;">
                 <button class="primary-btn" style="background-color: var(--tbp-blue); color: white; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; border-radius: 20px;" onclick="event.stopPropagation(); openSleepReport('${data.date}');">
                     📄 開啟睡眠報告
