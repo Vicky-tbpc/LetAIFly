@@ -2369,7 +2369,7 @@ function appendSummaryCard(dateTitle, data) {
     const cardId = `summary-card-${Date.now()}`;
 
     const cardHtml = `
-    <div class="msg-row ai-row">
+    <div class="msg-row ai-row" id="${cardId}">
         <div class="summary-card">
             
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f5f5f5; padding-bottom: 10px; margin-bottom: 15px;">
@@ -2434,12 +2434,13 @@ function appendSummaryCard(dateTitle, data) {
     
     document.getElementById('chat-history').innerHTML += cardHtml;
     
-    // 拿掉原本的 scrollToBottom()
-    // 改用 scrollIntoView 將剛生成的卡片頂端對齊畫面上方
-    const newCard = document.getElementById(cardId);
-    if (newCard) {
-        newCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    // 用 setTimeout 給瀏覽器一點時間渲染畫面，捲動定位會更精準
+    setTimeout(() => {
+        const newCard = document.getElementById(cardId);
+        if (newCard) {
+            newCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, 100);
 }
 
     function appendStatusOptions() {
