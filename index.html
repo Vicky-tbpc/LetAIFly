@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Soosyn 健康夥伴 n091-3</title>
+    <title>Soosyn 健康夥伴 n091-4</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -2365,6 +2365,9 @@ function appendSummaryCard(dateTitle, data) {
         });
     }
 
+    // --- 給這張新卡片一個獨立的 ID ---
+    const cardId = `summary-card-${Date.now()}`;
+
     const cardHtml = `
     <div class="msg-row ai-row">
         <div class="summary-card">
@@ -2430,7 +2433,13 @@ function appendSummaryCard(dateTitle, data) {
     </div>`;
     
     document.getElementById('chat-history').innerHTML += cardHtml;
-    scrollToBottom();
+    
+    // 拿掉原本的 scrollToBottom()
+    // 改用 scrollIntoView 將剛生成的卡片頂端對齊畫面上方
+    const newCard = document.getElementById(cardId);
+    if (newCard) {
+        newCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 }
 
     function appendStatusOptions() {
