@@ -2234,9 +2234,9 @@ function appendSummaryCard(dateTitle, data) {
 
         // 縱軸文字標籤
         svgHtml += `
-            <text x="45" y="20" font-size="13" fill="#888" text-anchor="end">高風險</text>
-            <text x="45" y="45" font-size="13" fill="#888" text-anchor="end">中風險</text>
-            <text x="45" y="70" font-size="13" fill="#888" text-anchor="end">低風險</text>
+            <text x="45" y="20" font-size="13" fill="#888" text-anchor="end">高</text>
+            <text x="45" y="45" font-size="13" fill="#888" text-anchor="end">中</text>
+            <text x="45" y="70" font-size="13" fill="#888" text-anchor="end">低</text>
         `;
 
         // 繪製對應層級的橫線資料點
@@ -2292,9 +2292,9 @@ function appendSummaryCard(dateTitle, data) {
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
                                 <div style="font-size: 15px; color: #5a5a5a; font-weight: bold;">7日趨勢</div>
                                 <div style="font-size: 13px; color: #888;">
-                                    <span style="color: #8699a3;">●</span> 低風險：${count0}
-                                    <span style="color: #a79d8c; margin-left: 5px;">●</span> 中風險：${count1}
-                                    <span style="color: #ff8c73; margin-left: 5px;">●</span> 高風險：${count2}
+                                    <span style="color: #8699a3;">●</span> 低：${count0}
+                                    <span style="color: #a79d8c; margin-left: 5px;">●</span> 中：${count1}
+                                    <span style="color: #ff8c73; margin-left: 5px;">●</span> 高：${count2}
                                 </div>
                             </div>
                             ${svgHtml}
@@ -2426,8 +2426,6 @@ function appendAbnormalityOptions() {
     scrollToBottom();
 }
 
-
-
 // 處理按鈕選後的行為
 async function handleAbnormalitySelection(choice) {
     document.getElementById('abnormality-options-container')?.remove();
@@ -2442,11 +2440,6 @@ async function handleAbnormalitySelection(choice) {
         await handleAbnormalityInput(choice);
     }
 }
-
-
-
-
-
 
 async function handleStatusSelection(text, score) {
     document.getElementById('status-options-container')?.remove();
