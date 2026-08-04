@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Soosyn 健康夥伴 n092</title>
+    <title>Soosyn 健康夥伴 n092-2</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -2192,74 +2192,112 @@ function appendSummaryCard(dateTitle, data) {
         `;
     }
 
-    // --- 新增：心血管風險區塊判斷 ---
+    // --- 新增：心血管風險 區塊 ---
     let riskSectionHtml = '';
     if (raw && raw.risk_test != null) {
-        const currentRisk = parseNum(raw.risk_test);
-        let riskText = currentRisk === 0 ? '低' : (currentRisk === 1 ? '中' : (currentRisk === 2 ? '高' : '--'));
+        const riskVal = raw.risk_test;
+        let riskText = '';
+        let bar1 = '#e1e1e1', bar2 = '#e1e1e1', bar3 = '#e1e1e1', bar4 = '#e1e1e1';
 
-        // 判斷三條橫線顏色
-        const c0 = currentRisk === 0 ? '#8699a3' : '#e1e1e1';
-        const c1 = currentRisk === 1 ? '#a79d8c' : '#e1e1e1';
-        const c2 = currentRisk === 2 ? '#ff8c73' : '#e1e1e1';
+        if (riskVal === 0) {
+            riskText = '正常';
+            bar1 = '#596b75';
+        } else if (riskVal === 1) {
+            riskText = '低';
+            bar2 = '#8699a3';
+        } else if (riskVal === 2) {
+            riskText = '中';
+            bar3 = '#a79d8c';
+        } else if (riskVal === 3) {
+            riskText = '高';
+            bar4 = '#ff8c73';
+        }
 
-        // 抓取 7 日紀錄 (舊到新) 並計算次數
-        const hist = [...history7].reverse();
-        let count0 = 0, count1 = 0, count2 = 0;
-        const riskData = hist.map(h => {
-            const r = (h.raw_json && h.raw_json.risk_test !== undefined) ? h.raw_json.risk_test : h.risk_test;
-            const v = parseNum(r);
-            if (v === 0) count0++;
-            if (v === 1) count1++;
-            if (v === 2) count2++;
-            return v;
+        // 計算7日數量
+        let c0 = 0, c1 = 0, c2 = 0, c3 = 0;
+        history7.forEach(h => {
+            const v = (h.raw_json && h.raw_json.risk_test !== undefined) ? h.raw_json.risk_test : null;
+            if (v === 0) c0++;
+            else if (v === 1) c1++;
+            else if (v === 2) c2++;
+            else if (v === 3) c3++;
         });
 
-        // 格式化 X 軸日期 (優先使用 record_end)
-        const formatAxisDate = (d) => {
+        // 轉換日期 + 1 天工具
+        const formatRiskAxisDatePlus1 = (d) => {
             if (!d) return '';
-            const parts = d.split(/[-/]/);
-            if (parts.length >= 3) return `${parts[1]}/${parts[2].substring(0,2)}`;
+            const parts = d.split(' ')[0].split(/[-/]/); 
+            if (parts.length >= 3) {
+                let year = parseInt(parts[0], 10);
+                let month = parseInt(parts[1], 10) - 1; 
+                let day = parseInt(parts[2].substring(0,2), 10);
+                let dateObj = new Date(year, month, day);
+                if(isNaN(dateObj)) return d;
+                dateObj.setDate(dateObj.getDate() + 1);
+                let mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                let dd = String(dateObj.getDate()).padStart(2, '0');
+                return `${mm}/${dd}`;
+            }
             return d;
         };
-        const firstDate = formatAxisDate(hist[0].record_end || hist[0].record_date || '');
-        const lastDate = formatAxisDate(hist[hist.length - 1].record_end || hist[hist.length - 1].record_date || '');
 
-        // 繪製 7 日趨勢迷你圖表 (SVG)
-        const width = 300;
-        const height = 90;
-        const getX = (index) => 60 + (index * ((width - 80) / Math.max(1, riskData.length - 1)));
+        const histRev = [...history7].reverse();
+        const riskChartData = histRev.map(h => (h.raw_json && h.raw_json.risk_test !== undefined) ? h.raw_json.risk_test : null);
 
-        let svgHtml = `<svg viewBox="0 0 ${width} ${height}" style="width: 100%; height: 90px; overflow: visible; margin-top: 10px; background-color: white; border-radius: 8px;">`;
+        const getRiskY = (v) => {
+            if (v === 3) return 20;
+            if (v === 2) return 40;
+            if (v === 1) return 60;
+            if (v === 0) return 80;
+            return 80;
+        };
+        const getRiskLineColor = (v) => {
+            if (v === 3) return '#ff8c73';
+            if (v === 2) return '#a79d8c';
+            if (v === 1) return '#8699a3';
+            if (v === 0) return '#596b75';
+            return '#000';
+        };
 
-        // 縱軸文字標籤
-        svgHtml += `
-            <text x="45" y="20" font-size="13" fill="#888" text-anchor="end">高</text>
-            <text x="45" y="45" font-size="13" fill="#888" text-anchor="end">中</text>
-            <text x="45" y="70" font-size="13" fill="#888" text-anchor="end">低</text>
-        `;
+        const drawWidth = 300;
+        const startX = 40;
+        const endX = drawWidth - 20;
+        const xStep = riskChartData.length > 1 ? (endX - startX) / (riskChartData.length - 1) : 0;
 
-        // 繪製對應層級的橫線資料點
-        riskData.forEach((val, i) => {
-            if (val !== null && (val === 0 || val === 1 || val === 2)) {
-                const cy = val === 2 ? 15 : (val === 1 ? 40 : 65);
-                const color = val === 2 ? '#ff8c73' : (val === 1 ? '#a79d8c' : '#8699a3');
-                const cx = getX(i);
-                svgHtml += `<line x1="${cx - 8}" y1="${cy}" x2="${cx + 8}" y2="${cy}" stroke="${color}" stroke-width="4" stroke-linecap="round" />`;
+        // 繪製心血管風險 SVG 趨勢圖 (使用橫線顯示點位)
+        let riskSvg = `<svg viewBox="0 0 ${drawWidth} 110" style="width: 100%; height: 110px; overflow: visible; margin-top: 10px; background-color: white; border-radius: 8px;">`;
+        
+        // 縱軸文字
+        riskSvg += `<text x="30" y="20" font-size="12" fill="#888" text-anchor="end" dominant-baseline="middle">高</text>`;
+        riskSvg += `<text x="30" y="40" font-size="12" fill="#888" text-anchor="end" dominant-baseline="middle">中</text>`;
+        riskSvg += `<text x="30" y="60" font-size="12" fill="#888" text-anchor="end" dominant-baseline="middle">低</text>`;
+        riskSvg += `<text x="30" y="80" font-size="12" fill="#888" text-anchor="end" dominant-baseline="middle">正常</text>`;
+
+        // 數值資料繪圖
+        riskChartData.forEach((val, i) => {
+            if (val !== null) {
+                let cx = startX + i * xStep;
+                if (riskChartData.length === 1) cx = startX + (endX - startX) / 2;
+                let cy = getRiskY(val);
+                let ccolor = getRiskLineColor(val);
+                // 畫出水平橫線代表數值點位
+                riskSvg += `<line x1="${cx - 8}" y1="${cy}" x2="${cx + 8}" y2="${cy}" stroke="${ccolor}" stroke-width="4" stroke-linecap="round" />`;
             }
         });
 
-        // 橫軸日期
-        svgHtml += `<text x="60" y="${height - 2}" font-size="14" fill="#999" text-anchor="middle">${firstDate}</text>`;
-        if (hist.length > 1) {
-            svgHtml += `<text x="${width - 20}" y="${height - 2}" font-size="14" fill="#999" text-anchor="middle">${lastDate}</text>`;
-        }
-        svgHtml += `</svg>`;
+        // 橫軸文字 (+1天)
+        const firstRiskDate = formatRiskAxisDatePlus1(histRev[0].record_end || histRev[0].record_date || '');
+        const lastRiskDate = formatRiskAxisDatePlus1(histRev[histRev.length - 1].record_end || histRev[histRev.length - 1].record_date || '');
 
-        const riskContainerId = `risk-container-${Date.now()}`;
+        riskSvg += `<text x="${startX}" y="105" font-size="12" fill="#999" text-anchor="middle">${firstRiskDate}</text>`;
+        if (riskChartData.length > 1) {
+            riskSvg += `<text x="${endX}" y="105" font-size="12" fill="#999" text-anchor="middle">${lastRiskDate}</text>`;
+        }
+        riskSvg += `</svg>`;
+
+        const toggleId = `risk-chart-container-${Date.now()}-${Math.floor(Math.random()*1000)}`;
 
         riskSectionHtml = `
-            <!-- 心血管風險區塊 -->
             <div style="background-color: #f8fcfc; border-radius: 12px; padding: 15px; margin-bottom: 15px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
@@ -2271,33 +2309,36 @@ function appendSummaryCard(dateTitle, data) {
                     </span>
                 </div>
 
-                <!-- 3條橫線與標籤 -->
-                <div style="display: flex; gap: 6px; height: 6px; margin-bottom: 8px;">
-                    <div style="flex: 1; background-color: ${c0}; border-radius: 3px;"></div>
-                    <div style="flex: 1; background-color: ${c1}; border-radius: 3px;"></div>
-                    <div style="flex: 1; background-color: ${c2}; border-radius: 3px;"></div>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 13px; color: #888;">
-                    <div style="flex: 1; text-align: center;">低風險</div>
-                    <div style="flex: 1; text-align: center;">中風險</div>
-                    <div style="flex: 1; text-align: center;">高風險</div>
+                <div style="display: flex; gap: 4px; height: 6px; width: 100%;">
+                    <div style="flex: 1; background-color: ${bar1}; border-radius: 3px;"></div>
+                    <div style="flex: 1; background-color: ${bar2}; border-radius: 3px;"></div>
+                    <div style="flex: 1; background-color: ${bar3}; border-radius: 3px;"></div>
+                    <div style="flex: 1; background-color: ${bar4}; border-radius: 3px;"></div>
                 </div>
 
-                <!-- 自訂收合展開按鈕與迷你趨勢圖表 -->
+                <div style="display: flex; justify-content: space-between; font-size: 13px; color: #888; margin-top: 5px; text-align: center;">
+                    <div style="flex: 1;">正常</div>
+                    <div style="flex: 1;">低風險</div>
+                    <div style="flex: 1;">中風險</div>
+                    <div style="flex: 1;">高風險</div>
+                </div>
+
                 <div style="margin-top: 15px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 10px;" onclick="event.stopPropagation();">
                     <div style="text-align: center; color: #8699a3; font-size: 13px; cursor: pointer; padding: 5px 0;" 
-                         onclick="const c = document.getElementById('${riskContainerId}'); if(c.classList.contains('hidden')){ c.classList.remove('hidden'); this.innerText='▲ 收合7日趨勢'; } else { c.classList.add('hidden'); this.innerText='▼ 查看7日趨勢'; }">▼ 查看7日趨勢</div>
-                    <div id="${riskContainerId}" class="hidden" style="margin-top: 5px;">
+                         onclick="const c = document.getElementById('${toggleId}'); if(c.classList.contains('hidden')){c.classList.remove('hidden'); this.innerText='▲ 收合7日趨勢';}else{c.classList.add('hidden'); this.innerText='▼ 查看7日趨勢';}">▼ 查看7日趨勢</div>
+                    
+                    <div id="${toggleId}" class="hidden" style="margin-top: 5px;">
                         <div style="background: white; border-radius: 12px; padding: 15px; margin-top: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
                                 <div style="font-size: 15px; color: #5a5a5a; font-weight: bold;">7日趨勢</div>
-                                <div style="font-size: 13px; color: #888;">
-                                    <span style="color: #8699a3;">●</span> 低：${count0}
-                                    <span style="color: #a79d8c; margin-left: 5px;">●</span> 中：${count1}
-                                    <span style="color: #ff8c73; margin-left: 5px;">●</span> 高：${count2}
+                                <div style="font-size: 13px; color: #888; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; width: 65%;">
+                                    <div style="display: flex; align-items: center; gap: 4px;"><div style="flex-shrink: 0; width:8px; height:8px; border-radius:50%; background-color:#596b75;"></div>正常: ${c0}</div>
+                                    <div style="display: flex; align-items: center; gap: 4px;"><div style="flex-shrink: 0; width:8px; height:8px; border-radius:50%; background-color:#8699a3;"></div>低: ${c1}</div>
+                                    <div style="display: flex; align-items: center; gap: 4px;"><div style="flex-shrink: 0; width:8px; height:8px; border-radius:50%; background-color:#a79d8c;"></div>中: ${c2}</div>
+                                    <div style="display: flex; align-items: center; gap: 4px;"><div style="flex-shrink: 0; width:8px; height:8px; border-radius:50%; background-color:#ff8c73;"></div>高: ${c3}</div>
                                 </div>
                             </div>
-                            ${svgHtml}
+                            ${riskSvg}
                         </div>
                     </div>
                 </div>
@@ -2374,7 +2415,7 @@ function appendSummaryCard(dateTitle, data) {
 
             <!-- 替換為動態條件判斷的靜息心率 RHR 區塊 -->
             ${rhrSectionHtml}
-            <!-- 新增的動態心血管風險區塊 -->
+            <!-- 將心血管風險區塊直接安插在 RHR 下方 -->
             ${riskSectionHtml}
             <!-- 新版的動態分析與報告 -->
             ${capsulesHtml}
