@@ -2275,10 +2275,9 @@ function appendSummaryCard(dateTitle, data) {
         };
 
         const drawWidth = 300;
-        const startX = 90; // 加大第一筆數據橫線與縱軸的間距 (縱軸文字在 x=30)
-        // 總寬度縮為 120 (原本是 240)，所以間距(xStep)是原來的 1/2
-        const xStep = riskChartData.length > 1 ? 120 / (riskChartData.length - 1) : 0;
-        const endX = riskChartData.length > 1 ? startX + (riskChartData.length - 1) * xStep : startX;
+        const startX = 90;
+        const endX = drawWidth - 20;
+        const xStep = riskChartData.length > 1 ? (endX - startX) / (riskChartData.length - 1) : 0;
 
         // 繪製心血管風險 SVG 趨勢圖 (使用橫線顯示點位)
         let riskSvg = `<svg viewBox="0 0 ${drawWidth} 110" style="width: 100%; height: 110px; overflow: visible; margin-top: 10px; background-color: white; border-radius: 8px;">`;
@@ -2293,7 +2292,7 @@ function appendSummaryCard(dateTitle, data) {
         riskChartData.forEach((val, i) => {
             if (val !== null) {
                 let cx = startX + i * xStep;
-                if (riskChartData.length === 1) cx = startX + 120 / 2; // 如果只有一筆資料，讓它置中於橫線範圍
+                if (riskChartData.length === 1) cx = startX + (endX - startX) / 2;
                 let cy = getRiskY(val);
                 let ccolor = getRiskLineColor(val);
                 // 畫出水平橫線代表數值點位
