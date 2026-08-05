@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Soosyn 健康夥伴 n092-2</title>
+    <title>Soosyn 健康夥伴 n092-3</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -1824,7 +1824,7 @@ function toggleMiniChart(btn, containerId) {
 }
 
 // --- 新增：產生單一迷你趨勢圖表卡片 (純白底色卡片) ---
-function buildChartCard(title, field, history, chartTypeStr, chartTitleStr, parser, formatter, unit = '', hideCurrent = false) {
+function buildChartCard(title, field, history, chartTypeStr, chartTitleStr, parser, formatter, unit = '', hideCurrent = false, addOneDay = false) {
     // 歷史資料新到舊，繪圖要舊到新，先反轉
     const hist = [...history].reverse(); 
     const data = hist.map(h => {
@@ -1874,8 +1874,23 @@ function buildChartCard(title, field, history, chartTypeStr, chartTitleStr, pars
     // 日期 X 軸 (抓取 record_end)
     const formatAxisDate = (d) => {
         if (!d) return '';
-        const parts = d.split(/[-/]/); 
-        if (parts.length >= 3) return `${parts[1]}/${parts[2].substring(0,2)}`;
+        const datePart = d.split(' ')[0];
+        const parts = datePart.split(/[-/]/); 
+        if (parts.length >= 3) {
+            if (addOneDay) {
+                let year = parseInt(parts[0], 10);
+                let month = parseInt(parts[1], 10) - 1; 
+                let day = parseInt(parts[2].substring(0,2), 10);
+                let dateObj = new Date(year, month, day);
+                if (!isNaN(dateObj)) {
+                    dateObj.setDate(dateObj.getDate() + 1);
+                    let mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                    let dd = String(dateObj.getDate()).padStart(2, '0');
+                    return `${mm}/${dd}`;
+                }
+            }
+            return `${parts[1]}/${parts[2].substring(0,2)}`;
+        }
         return d;
     };
     
@@ -2118,7 +2133,7 @@ function appendSummaryCard(dateTitle, data) {
     const hrvExtraHtml = buildToggleWrapper(buildChartCard('rMSSD', 'rMSSD', history7, 'rmssd', '🌿 rMSSD', parseNum, format1Dec, 'ms'), 'hrv');
     const pulseExtraHtml = buildToggleWrapper(buildChartCard('睡眠最低脈搏', 'HR_min', history7, 'hrmin', '💓 睡眠最低脈搏', parseNum, formatRound, 'bpm'), 'pulse');
     const o2ExtraHtml = buildToggleWrapper(buildChartCard('HBI 低氧負擔指數', 'HBI', history7, 'hbi', '🫁 HBI 低氧負擔指數', parseNum, format1Dec, '%min/h'), 'o2');
-    const rhrExtraHtml = buildToggleWrapper(buildChartCard('7日趨勢', 'RHR_raw', history7, 'rhr', '❤️ 靜息心率 (RHR)', parseNum, formatRound, 'bpm', true), 'rhr');
+    const rhrExtraHtml = buildToggleWrapper(buildChartCard('7日趨勢', 'RHR_raw', history7, 'rhr', '❤️ 靜息心率 (RHR)', parseNum, formatRound, 'bpm', true, true), 'rhr');
     // --- 新增：健康提醒區塊判斷邏輯 ---
     let alertHtml = '';
     // 條件：恢復指數 < 60 或 發炎風險為黃燈/紅燈 時才觸發
@@ -2260,9 +2275,10 @@ function appendSummaryCard(dateTitle, data) {
         };
 
         const drawWidth = 300;
-        const startX = 40;
-        const endX = drawWidth - 20;
-        const xStep = riskChartData.length > 1 ? (endX - startX) / (riskChartData.length - 1) : 0;
+        const startX = 90; // 加大第一筆數據橫線與縱軸的間距 (縱軸文字在 x=30)
+        // 總寬度縮為 120 (原本是 240)，所以間距(xStep)是原來的 1/2
+        const xStep = riskChartData.length > 1 ? 120 / (riskChartData.length - 1) : 0;
+        const endX = riskChartData.length > 1 ? startX + (riskChartData.length - 1) * xStep : startX;
 
         // 繪製心血管風險 SVG 趨勢圖 (使用橫線顯示點位)
         let riskSvg = `<svg viewBox="0 0 ${drawWidth} 110" style="width: 100%; height: 110px; overflow: visible; margin-top: 10px; background-color: white; border-radius: 8px;">`;
@@ -2277,7 +2293,7 @@ function appendSummaryCard(dateTitle, data) {
         riskChartData.forEach((val, i) => {
             if (val !== null) {
                 let cx = startX + i * xStep;
-                if (riskChartData.length === 1) cx = startX + (endX - startX) / 2;
+                if (riskChartData.length === 1) cx = startX + 120 / 2; // 如果只有一筆資料，讓它置中於橫線範圍
                 let cy = getRiskY(val);
                 let ccolor = getRiskLineColor(val);
                 // 畫出水平橫線代表數值點位
