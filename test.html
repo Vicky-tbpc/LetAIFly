@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Soosyn 健康夥伴 n091-3</title>
+    <title>Soosyn 健康夥伴 n093</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -584,7 +584,6 @@ function getLocalDateString() {
     return `${year}-${month}-${day}`;
 }
 
-
     const SUPABASE_URL = "https://gcvwebgfbrsrezxvjafe.supabase.co";
     const SUPABASE_KEY = "sb_publishable_H_-X-v5cU7I3IHjml2CGUQ_FUK6teZs";
     const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -624,7 +623,6 @@ function getRandomEndQuestion() {
         "我會與你一起建立好習慣！✨ 一步一步邁向更健康的生活！現在想從哪個部分開始了解呢？",
         "🌟 維持健康的好習慣很重要！讓我們一起穩定前進吧！想查看哪個資訊呢？"
     ];
-    const ENCYCLOPEDIA_KEYWORDS = ["什麼是睡眠平衡", "睡眠平衡度?", "睡眠平衡?", "睡眠平衡度？", "睡眠平衡？"];
 
 async function login() {
     const serial = document.getElementById('serial').value;
@@ -867,25 +865,6 @@ const healthConfigs = []; // 這樣就不會報錯，只是不會比對到任何
     const matchedConfig = healthConfigs.find(c => c.regex.test(msg));
     const isDefinitionQuery = msg.includes("什麼是") || msg.includes("？") || msg.includes("?");
 
- // --- 睡眠平衡度 ---
-    if ((msg.includes("睡眠平衡")) && !isDefinitionQuery) {
-        if (hasAnyDate) processBalanceSearch(targetDateStr);
-        else { await appendAiMessage("📊 想查看哪一天的睡眠平衡度呢？"); showDateActions('balance'); }
-        return;
-    }   
-
-
-// --- 需求 1 & 2：指標查詢邏輯 ---
-    if (matchedConfig) {
-        if (hasAnyDate || isDefinitionQuery) {
-            await processHealthKeyword(matchedConfig, targetDateStr, isDefinitionQuery);
-        } else {
-            await appendAiMessage(`🔍 想查看哪一天的 ${matchedConfig.fallbackTitle} 呢？`);
-            showDateActions('metric', matchedConfig);
-        }
-        return;
-    }
-
 // --- 需求：健康摘要邏輯修改 (修正版) ---
 if (msg.includes("健康摘要")) {
     // 1. 取得使用者提到的日期（例如：2026-04-02）
@@ -919,17 +898,6 @@ if (msg.includes("健康摘要")) {
     return; 
 }
 
-    // 百科關鍵字
-    const wikiKeyword = ENCYCLOPEDIA_KEYWORDS.find(k => msg.includes(k));
-    if (wikiKeyword) {
-        const { data } = await _supabase.from('phrase_library').select('detailed_content').eq('title', wikiKeyword).limit(1).single();
-        if (data) { 
-            await appendAiMessage(data.detailed_content); 
-            await new Promise(r => setTimeout(r, 600)); 
-            await appendAiMessage(getRandomEndQuestion()); 
-            return;
-        }
-    }
 
 // --- 關鍵修改點：在最後的 else 區塊插入 Gemini 轉接邏輯 ---
 if (isWaitingForAbnormality) { 
@@ -1788,118 +1756,6 @@ function renderLegend(type, abnormalLabel) {
     html += `<div class="legend-row"><div class="dot-sample" style="background:#ff8c73"></div> ${abnormalLabel}</div>`;
     return html;
 }
-
-
-// --- 核心邏輯：雷達圖平衡度 (修正版：最大化圓圈尺寸) ---
-   function appendBalanceCard(data) {
-        const raw = data.raw_json;
-        const indicators = [
-            { label: '修復時間', val: raw.Battery_TST_min_A || 0 },
-            { label: '核心修復', val: raw.Battery_N3_pct_A || 0 },
-            { label: '放鬆指數', val: raw.Battery_rMSSD_A || 0 },
-            { label: '脈搏穩定度', val: raw.Battery_HR_min_A || 0 },
-            { label: '血氧穩定度', val: raw.Battery_HBI_A || 0 },
-            { label: '睡眠連續性', val: raw.Battery_wake_minutes_A || 0 },
-            { label: '睡眠規律性', val: raw.Battery_OnsetDev_min_A || 0 }
-        ];
-
-        const lowCount = indicators.filter(i => i.val < 60).length;
-        const resultText = lowCount > 3 ? "低平衡度" : indicators.every(i => i.val >= 60) ? "高平衡度" : "中平衡度";
-        
-        const centerX = 230;
-        const centerY = 230;
-        const radiusMin = 55; 
-        const radiusMid = 115; 
-        const radiusMax = 180;
-
-        const points = indicators.map((ind, i) => {
-            const angle = (Math.PI * 2 * i / 7) - (Math.PI / 2);
-            let r;
-            if (ind.val < 60) {
-                r = radiusMin + (ind.val / 60) * (radiusMid - radiusMin);
-            } else {
-                r = radiusMid + ((Math.min(ind.val, 100) - 60) / 40) * (radiusMax - radiusMid);
-            }
-
-            const color = ind.val >= 95 ? "#596b75" : ind.val >= 80 ? "#8699a3" : ind.val >= 60 ? "#a79d8c" : "#ff8c73";
-            const labelDist = radiusMax + 55; // 再往外推一點點
-            
-            return { 
-                x: centerX + r * Math.cos(angle), 
-                y: centerY + r * Math.sin(angle), 
-                color, 
-                labelX: centerX + labelDist * Math.cos(angle), 
-                labelY: centerY + (labelDist - 5) * Math.sin(angle) 
-            };
-        });
-
-        const cardHtml = `
-            <div class="msg-row ai-row">
-                <div class="balance-card" onclick="zoomChart(this)">
-                    <div class="summary-header"><span>📅 ${data.record_date.replace(/-/g, '/')} 睡眠平衡度</span></div>
-                    <svg viewBox="-70 -55 600 550" class="radar-svg" style="width: 100%; height: auto; display: block;">
-                        <circle cx="${centerX}" cy="${centerY}" r="${radiusMax}" fill="#f2f2f2" />
-                        <circle cx="${centerX}" cy="${centerY}" r="${radiusMid}" fill="#e6e6e6" />
-                        <circle cx="${centerX}" cy="${centerY}" r="${radiusMin}" fill="white" />
-                        
-                        ${indicators.map((_, i) => {
-                            const angle = (Math.PI * 2 * i / 7) - (Math.PI / 2);
-                            return `<line x1="${centerX + radiusMin * Math.cos(angle)}" y1="${centerY + radiusMin * Math.sin(angle)}" 
-                                          x2="${centerX + radiusMax * Math.cos(angle)}" y2="${centerY + radiusMax * Math.sin(angle)}" 
-                                          stroke="white" stroke-width="1.5" />`;
-                        }).join('')}
-                        
-                        ${points.map((p, i) => `
-                            <circle cx="${p.x}" cy="${p.y}" r="7" fill="${p.color}" stroke="white" stroke-width="1.5" />
-                            <text x="${p.labelX}" y="${p.labelY}" class="radar-label" 
-                                  text-anchor="middle" dominant-baseline="middle" 
-                                  style="font-size: 17px; font-weight: 600; fill: #555;">${indicators[i].label}</text>
-                        `).join('')}
-                        
-                        <text x="${centerX}" y="${centerY + 5}" class="radar-result-text" text-anchor="middle" style="font-size: 22px; font-weight: bold; fill: #444;">${resultText}</text>
-                    </svg>
-
-                    <div class="balance-description">
-                        綜合修復時間、核心修復、放鬆指數、脈搏穩定度、血氧穩定度、睡眠連續性、睡眠規律性，七大項指標評估睡眠平衡狀態。
-                    </div>
-                </div>
-            </div>`;
-        document.getElementById('chat-history').innerHTML += cardHtml; 
-        scrollToBottom();
-    }
-// 其他輔助函數
-async function processBalanceSearch(d) {
-    document.querySelector('.date-actions')?.remove();
-    await appendAiMessage(`正在查詢 ${d} 睡眠平衡度...`);
-    try {
-        // 1. 修改參數：加上 end，將搜尋範圍鎖定在目標日期當天
-        const params = new URLSearchParams({ serial: currentSerial, start: d, end: d }).toString();
-        
-        // 2. 向地端要求資料
-        const response = await fetch(`/api/health?${params}`);
-        if (!response.ok) throw new Error("地端連線失敗");
-        
-        const filteredData = await response.json();
-        
-        // 3. 修改抓取邏輯：確保 record_date 與目標日期完全一致
-        const dayData = Array.isArray(filteredData) ? filteredData.find(r => r.record_date === d) : null;
-        
-        if (dayData) {
-            // 4. 呼叫卡片生成函式
-            appendBalanceCard(dayData);
-            await new Promise(r => setTimeout(r, 600));
-            await appendAiMessage(getRandomEndQuestion());
-        } else {
-            // 5. 沒有資料時的處理邏輯
-            await appendAiMessage("這天沒數據喔~ 😅 可能是沒有上傳，或資料尚未同步完成。 ☁️");
-            await new Promise(r => setTimeout(r, 800));
-            await appendAiMessage(getRandomEndQuestion());
-        }
-    } catch (err) {
-        console.error("讀取失敗:", err);
-        await appendAiMessage("連不到地端 Python 伺服器，請確認 CMD 視窗有沒有開喔！ 🔌");
-    }
-}
     
 // 修改為接收兩個參數：d (抓資料用), displayDate (顯示用)
 async function processSummarySearch(d, displayDate) {
@@ -1936,37 +1792,21 @@ async function processSummarySearch(d, displayDate) {
     }
 }
 
+function showDateActions() {
+    const today = getLocalDateString();
 
-function showDateActions(type, metricConfig = null) {
-    const today = getLocalDateString(); 
     const d = new Date();
     d.setDate(d.getDate() - 1);
     const yesterday = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-    let html = '';
-    
-    if (type === 'metric' && metricConfig) {
-        // 指標類型 (N3, rMSSD 等)
-        const configJson = JSON.stringify(metricConfig).replace(/"/g, '&quot;');
-        html = `
-            <div class="msg-row ai-row date-actions">
-                <div class="quick-actions">
-                    <button class="action-btn" onclick="processHealthKeyword(${configJson}, '${today}', false)">今天</button>
-                    <button class="action-btn" onclick="processHealthKeyword(${configJson}, '${yesterday}', false)">昨天</button>
-                </div>
-            </div>`;
-    } else {
-        // 摘要或平衡度類型
-        const callback = type === 'balance' ? 'processBalanceSearch' : 'processSummarySearch';
-        html = `
-            <div class="msg-row ai-row date-actions">
-                <div class="quick-actions">
-                    <button class="action-btn" onclick="${callback}('${today}')">今天</button>
-                    <button class="action-btn" onclick="${callback}('${yesterday}')">昨天</button>
-                </div>
-            </div>`;
-    }
-    
+    const html = `
+        <div class="msg-row ai-row date-actions">
+            <div class="quick-actions">
+                <button class="action-btn" onclick="processSummarySearch('${today}')">今天</button>
+                <button class="action-btn" onclick="processSummarySearch('${yesterday}')">昨天</button>
+            </div>
+        </div>`;
+
     document.getElementById('chat-history').innerHTML += html;
     scrollToBottom();
 }
@@ -1984,7 +1824,7 @@ function toggleMiniChart(btn, containerId) {
 }
 
 // --- 新增：產生單一迷你趨勢圖表卡片 (純白底色卡片) ---
-function buildChartCard(title, field, history, chartTypeStr, chartTitleStr, parser, formatter, unit = '', hideCurrent = false) {
+function buildChartCard(title, field, history, chartTypeStr, chartTitleStr, parser, formatter, unit = '', hideCurrent = false, addOneDay = false) {
     // 歷史資料新到舊，繪圖要舊到新，先反轉
     const hist = [...history].reverse(); 
     const data = hist.map(h => {
@@ -2034,8 +1874,23 @@ function buildChartCard(title, field, history, chartTypeStr, chartTitleStr, pars
     // 日期 X 軸 (抓取 record_end)
     const formatAxisDate = (d) => {
         if (!d) return '';
-        const parts = d.split(/[-/]/); 
-        if (parts.length >= 3) return `${parts[1]}/${parts[2].substring(0,2)}`;
+        const datePart = d.split(' ')[0];
+        const parts = datePart.split(/[-/]/); 
+        if (parts.length >= 3) {
+            if (addOneDay) {
+                let year = parseInt(parts[0], 10);
+                let month = parseInt(parts[1], 10) - 1; 
+                let day = parseInt(parts[2].substring(0,2), 10);
+                let dateObj = new Date(year, month, day);
+                if (!isNaN(dateObj)) {
+                    dateObj.setDate(dateObj.getDate() + 1);
+                    let mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                    let dd = String(dateObj.getDate()).padStart(2, '0');
+                    return `${mm}/${dd}`;
+                }
+            }
+            return `${parts[1]}/${parts[2].substring(0,2)}`;
+        }
         return d;
     };
     
@@ -2278,7 +2133,7 @@ function appendSummaryCard(dateTitle, data) {
     const hrvExtraHtml = buildToggleWrapper(buildChartCard('rMSSD', 'rMSSD', history7, 'rmssd', '🌿 rMSSD', parseNum, format1Dec, 'ms'), 'hrv');
     const pulseExtraHtml = buildToggleWrapper(buildChartCard('睡眠最低脈搏', 'HR_min', history7, 'hrmin', '💓 睡眠最低脈搏', parseNum, formatRound, 'bpm'), 'pulse');
     const o2ExtraHtml = buildToggleWrapper(buildChartCard('HBI 低氧負擔指數', 'HBI', history7, 'hbi', '🫁 HBI 低氧負擔指數', parseNum, format1Dec, '%min/h'), 'o2');
-    const rhrExtraHtml = buildToggleWrapper(buildChartCard('7日趨勢', 'RHR_raw', history7, 'rhr', '❤️ 靜息心率 (RHR)', parseNum, formatRound, 'bpm', true), 'rhr');
+    const rhrExtraHtml = buildToggleWrapper(buildChartCard('7日趨勢', 'RHR_raw', history7, 'rhr', '❤️ 靜息心率 (RHR)', parseNum, formatRound, 'bpm', true, true), 'rhr');
     // --- 新增：健康提醒區塊判斷邏輯 ---
     let alertHtml = '';
     // 條件：恢復指數 < 60 或 發炎風險為黃燈/紅燈 時才觸發
@@ -2352,6 +2207,160 @@ function appendSummaryCard(dateTitle, data) {
         `;
     }
 
+    // --- 新增：心血管風險 區塊 ---
+    let riskSectionHtml = '';
+    if (raw && raw.risk_test != null) {
+        const riskVal = raw.risk_test;
+        let riskText = '';
+        let bar1 = '#e1e1e1', bar2 = '#e1e1e1', bar3 = '#e1e1e1', bar4 = '#e1e1e1';
+
+        if (riskVal === 0) {
+            riskText = '正常';
+            bar1 = '#596b75';
+        } else if (riskVal === 1) {
+            riskText = '低';
+            bar2 = '#8699a3';
+        } else if (riskVal === 2) {
+            riskText = '中';
+            bar3 = '#a79d8c';
+        } else if (riskVal === 3) {
+            riskText = '高';
+            bar4 = '#ff8c73';
+        }
+
+        // 計算7日數量
+        let c0 = 0, c1 = 0, c2 = 0, c3 = 0;
+        history7.forEach(h => {
+            const v = (h.raw_json && h.raw_json.risk_test !== undefined) ? h.raw_json.risk_test : null;
+            if (v === 0) c0++;
+            else if (v === 1) c1++;
+            else if (v === 2) c2++;
+            else if (v === 3) c3++;
+        });
+
+        // 轉換日期 + 1 天工具
+        const formatRiskAxisDatePlus1 = (d) => {
+            if (!d) return '';
+            const parts = d.split(' ')[0].split(/[-/]/); 
+            if (parts.length >= 3) {
+                let year = parseInt(parts[0], 10);
+                let month = parseInt(parts[1], 10) - 1; 
+                let day = parseInt(parts[2].substring(0,2), 10);
+                let dateObj = new Date(year, month, day);
+                if(isNaN(dateObj)) return d;
+                dateObj.setDate(dateObj.getDate() + 1);
+                let mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                let dd = String(dateObj.getDate()).padStart(2, '0');
+                return `${mm}/${dd}`;
+            }
+            return d;
+        };
+
+        const histRev = [...history7].reverse();
+        const riskChartData = histRev.map(h => (h.raw_json && h.raw_json.risk_test !== undefined) ? h.raw_json.risk_test : null);
+
+        const getRiskY = (v) => {
+            if (v === 3) return 20;
+            if (v === 2) return 40;
+            if (v === 1) return 60;
+            if (v === 0) return 80;
+            return 80;
+        };
+        const getRiskLineColor = (v) => {
+            if (v === 3) return '#ff8c73';
+            if (v === 2) return '#a79d8c';
+            if (v === 1) return '#8699a3';
+            if (v === 0) return '#596b75';
+            return '#000';
+        };
+
+        const drawWidth = 300;
+        const startX = 60;
+        const endX = drawWidth - 20;
+        const xStep = riskChartData.length > 1 ? (endX - startX) / (riskChartData.length - 1) : 0;
+
+        // 繪製心血管風險 SVG 趨勢圖 (使用橫線顯示點位)
+        let riskSvg = `<svg viewBox="0 0 ${drawWidth} 110" style="width: 100%; height: 110px; overflow: visible; margin-top: 10px; background-color: white; border-radius: 8px;">`;
+        
+        // 縱軸文字
+        riskSvg += `<text x="30" y="20" font-size="12" fill="#888" text-anchor="end" dominant-baseline="middle">高</text>`;
+        riskSvg += `<text x="30" y="40" font-size="12" fill="#888" text-anchor="end" dominant-baseline="middle">中</text>`;
+        riskSvg += `<text x="30" y="60" font-size="12" fill="#888" text-anchor="end" dominant-baseline="middle">低</text>`;
+        riskSvg += `<text x="30" y="80" font-size="12" fill="#888" text-anchor="end" dominant-baseline="middle">正常</text>`;
+
+        // 數值資料繪圖
+        riskChartData.forEach((val, i) => {
+            if (val !== null) {
+                let cx = startX + i * xStep;
+                if (riskChartData.length === 1) cx = startX + (endX - startX) / 2;
+                let cy = getRiskY(val);
+                let ccolor = getRiskLineColor(val);
+                // 畫出水平橫線代表數值點位
+                riskSvg += `<line x1="${cx - 8}" y1="${cy}" x2="${cx + 8}" y2="${cy}" stroke="${ccolor}" stroke-width="4" stroke-linecap="round" />`;
+            }
+        });
+
+        // 橫軸文字 (+1天)
+        const firstRiskDate = formatRiskAxisDatePlus1(histRev[0].record_end || histRev[0].record_date || '');
+        const lastRiskDate = formatRiskAxisDatePlus1(histRev[histRev.length - 1].record_end || histRev[histRev.length - 1].record_date || '');
+
+        riskSvg += `<text x="${startX}" y="105" font-size="12" fill="#999" text-anchor="middle">${firstRiskDate}</text>`;
+        if (riskChartData.length > 1) {
+            riskSvg += `<text x="${endX}" y="105" font-size="12" fill="#999" text-anchor="middle">${lastRiskDate}</text>`;
+        }
+        riskSvg += `</svg>`;
+
+        const toggleId = `risk-chart-container-${Date.now()}-${Math.floor(Math.random()*1000)}`;
+
+        riskSectionHtml = `
+            <div style="background-color: #f8fcfc; border-radius: 12px; padding: 15px; margin-bottom: 15px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <img src="images/risk_h.svg" style="width: 20px; height: 20px;" alt="心血管風險">
+                        <span style="font-weight: bold; color: #333;">心血管風險</span>
+                    </div>
+                    <span style="font-size: 1.8rem; font-weight: bold; color: #596b75;">
+                        ${riskText}
+                    </span>
+                </div>
+
+                <div style="display: flex; gap: 4px; height: 6px; width: 100%;">
+                    <div style="flex: 1; background-color: ${bar1}; border-radius: 3px;"></div>
+                    <div style="flex: 1; background-color: ${bar2}; border-radius: 3px;"></div>
+                    <div style="flex: 1; background-color: ${bar3}; border-radius: 3px;"></div>
+                    <div style="flex: 1; background-color: ${bar4}; border-radius: 3px;"></div>
+                </div>
+
+                <div style="display: flex; justify-content: space-between; font-size: 13px; color: #888; margin-top: 5px; text-align: center;">
+                    <div style="flex: 1;">正常</div>
+                    <div style="flex: 1;">低風險</div>
+                    <div style="flex: 1;">中風險</div>
+                    <div style="flex: 1;">高風險</div>
+                </div>
+
+                <div style="margin-top: 15px; border-top: 1px solid rgba(0,0,0,0.05); padding-top: 10px;" onclick="event.stopPropagation();">
+                    <div style="text-align: center; color: #8699a3; font-size: 13px; cursor: pointer; padding: 5px 0;" 
+                         onclick="const c = document.getElementById('${toggleId}'); if(c.classList.contains('hidden')){c.classList.remove('hidden'); this.innerText='▲ 收合7日趨勢';}else{c.classList.add('hidden'); this.innerText='▼ 查看7日趨勢';}">▼ 查看7日趨勢</div>
+                    
+                    <div id="${toggleId}" class="hidden" style="margin-top: 5px;">
+                    <div style="background: white; border-radius: 12px; padding: 15px; margin-top: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);">
+                    <div style="display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px;">
+                    <div style="font-size: 15px; color: #5a5a5a; font-weight: bold;">7日趨勢</div>
+                <div style="font-size: 11px; color: #888; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; width: 100%;">
+                <div style="display: flex; align-items: center; gap: 4px;"><div style="flex-shrink: 0; width:8px; height:8px; border-radius:50%; background-color:#596b75;"></div>正常: ${c0}</div>
+                <div style="display: flex; align-items: center; gap: 4px;"><div style="flex-shrink: 0; width:8px; height:8px; border-radius:50%; background-color:#8699a3;"></div>低: ${c1}</div>
+                <div style="display: flex; align-items: center; gap: 4px;"><div style="flex-shrink: 0; width:8px; height:8px; border-radius:50%; background-color:#a79d8c;"></div>中: ${c2}</div>
+                <div style="display: flex; align-items: center; gap: 4px;"><div style="flex-shrink: 0; width:8px; height:8px; border-radius:50%; background-color:#ff8c73;"></div>高: ${c3}</div>
+                    </div>
+                    </div>
+                    ${riskSvg}
+                    </div>
+                  </div>
+                </div>
+            </div>
+        `;
+    }
+
     // --- 動態生成分析膠囊 (Capsules) ---
     let capsulesHtml = '';
     if (data.capsules && data.capsules.length > 0) {
@@ -2365,14 +2374,17 @@ function appendSummaryCard(dateTitle, data) {
         });
     }
 
+    // --- 給這張新卡片一個獨立的 ID ---
+    const cardId = `summary-card-${Date.now()}`;
+
     const cardHtml = `
-    <div class="msg-row ai-row">
+    <div class="msg-row ai-row" id="${cardId}">
         <div class="summary-card">
             
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #f5f5f5; padding-bottom: 10px; margin-bottom: 15px;">
+            <div style="display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid #f5f5f5; padding-bottom: 10px; margin-bottom: 15px;">
                 <span style="font-size: 1.1rem; color: #888; font-weight: bold;">📅 ${dateTitle} 健康摘要</span>
-                <span style="font-size: 1.1rem; color: #888; display: flex; align-items: center; gap: 6px;">
-                    <span class="status-dot" style="background-color: ${lightDotColor}; margin: 0; width: 12px; height: 12px;"></span> ${statusLight}
+                <span style="font-size: 1rem; color: #888; display: flex; align-items: center; gap: 6px; align-self: flex-end;">
+                    發炎風險：<span class="status-dot" style="background-color: ${lightDotColor}; margin: 0; width: 12px; height: 12px;"></span> ${statusLight}
                 </span>
             </div>
 
@@ -2418,6 +2430,8 @@ function appendSummaryCard(dateTitle, data) {
 
             <!-- 替換為動態條件判斷的靜息心率 RHR 區塊 -->
             ${rhrSectionHtml}
+            <!-- 將心血管風險區塊直接安插在 RHR 下方 -->
+            ${riskSectionHtml}
             <!-- 新版的動態分析與報告 -->
             ${capsulesHtml}
             <div style="margin: 20px 0 5px 0;">
@@ -2430,7 +2444,14 @@ function appendSummaryCard(dateTitle, data) {
     </div>`;
     
     document.getElementById('chat-history').innerHTML += cardHtml;
-    scrollToBottom();
+    
+    // 用 setTimeout 給瀏覽器一點時間渲染畫面，捲動定位會更精準
+    setTimeout(() => {
+        const newCard = document.getElementById(cardId);
+        if (newCard) {
+            newCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }, 100);
 }
 
     function appendStatusOptions() {
@@ -2461,8 +2482,6 @@ function appendAbnormalityOptions() {
     scrollToBottom();
 }
 
-
-
 // 處理按鈕選後的行為
 async function handleAbnormalitySelection(choice) {
     document.getElementById('abnormality-options-container')?.remove();
@@ -2477,11 +2496,6 @@ async function handleAbnormalitySelection(choice) {
         await handleAbnormalityInput(choice);
     }
 }
-
-
-
-
-
 
 async function handleStatusSelection(text, score) {
     document.getElementById('status-options-container')?.remove();
@@ -3021,17 +3035,31 @@ async function fetchAvailableSummaryDates() {
             availableSummaryDates.clear(); // 清空舊資料
             
             allData.forEach(d => {
-                if (d.raw_json && d.raw_json.Personal_Battery_weighted_round != null) {
-                    // 健康摘要的顯示日期 = 紀錄日期 (record_date) + 1 天
-                    const dateObj = new Date(d.record_date.replace(/-/g, '/'));
-                    dateObj.setDate(dateObj.getDate() + 1);
-                    const displayDate = dateObj.toLocaleDateString('en-CA');
+                if (d.raw_json) {
+                    const battery = d.raw_json.Personal_Battery_weighted_round;
+                    const trt = d.raw_json.TRT_min;
                     
-                    // 取得 raw_json 裡面的燈號，如果沒有就給空字串
-                    const light = d.raw_json.light_status || '';
-                    
-                    // 將「日期」作為 key，「燈號」作為 value 存起來
-                    availableSummaryDates.set(displayDate, light);
+                    // 判斷是否有值
+                    const hasBattery = battery !== null && battery !== undefined;
+                    const hasTRT = trt !== null && trt !== undefined;
+
+                    // 條件1 & 2：只要其中一個有值就要顯示；如果兩個都是 null/undefined 就不做任何事
+                    if (hasBattery || hasTRT) {
+                        // 健康摘要的顯示日期 = 紀錄日期 (record_date) + 1 天
+                        const dateObj = new Date(d.record_date.replace(/-/g, '/'));
+                        dateObj.setDate(dateObj.getDate() + 1);
+                        const displayDate = dateObj.toLocaleDateString('en-CA');
+                        
+                        const light = d.raw_json.light_status || '';
+                        
+                        // 儲存狀態物件，讓渲染與點擊事件都能判斷
+                        availableSummaryDates.set(displayDate, {
+                            hasBattery: hasBattery,
+                            hasTRTOnly: !hasBattery && hasTRT, // 代表只有 TRT 有值
+                            light: light,
+                            trtMin: trt
+                        });
+                    }
                 }
             });
         }
@@ -3071,28 +3099,35 @@ function renderCalendar() {
     
     const todayStr = getLocalDateString();
 
-// 產生每一天
+    // 產生每一天
     for (let day = 1; day <= daysInMonth; day++) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         
-        // 使用 .has() 判斷有沒有資料
-        const hasData = availableSummaryDates.has(dateStr);
+        // 取得該日期的資料狀態
+        const dateData = availableSummaryDates.get(dateStr);
+        const hasData = !!dateData;
         const isToday = dateStr === todayStr;
         
         let classNames = 'calendar-day';
+        let extraStyle = '';
         
         if (hasData) {
             classNames += ' has-data';
-            // 取出之前存好的燈號
-            const light = availableSummaryDates.get(dateStr);
             
-            // 根據燈號加上對應的 CSS class
-            if (light === '綠燈') classNames += ' status-green';
-            else if (light === '黃燈') classNames += ' status-yellow';
-            else if (light === '黃紅燈') classNames += ' status-orange';
-            else if (light === '紅燈') classNames += ' status-red';
-            else classNames += ' status-default'; 
-            
+            // 條件2：只有 TRT_min 有數值且 Battery 沒有數值時
+            if (dateData.hasTRTOnly) {
+                // 使用你指定的顏色 --tbp-light-blue
+                extraStyle = 'style="background-color: var(--tbp-light-blue); color: #fff;"'; 
+                classNames += ' status-trt-only';
+            } 
+            // 條件1：Battery 有數值，依據 light_status 呈現
+            else {
+                if (dateData.light === '綠燈') classNames += ' status-green';
+                else if (dateData.light === '黃燈') classNames += ' status-yellow';
+                else if (dateData.light === '黃紅燈') classNames += ' status-orange';
+                else if (dateData.light === '紅燈') classNames += ' status-red';
+                else classNames += ' status-default'; 
+            }
         } else {
             classNames += ' disabled'; // 無資料反灰
         }
@@ -3100,7 +3135,7 @@ function renderCalendar() {
         if (isToday) classNames += ' today';
         
         if (hasData) {
-            html += `<div class="${classNames}" onclick="selectCalendarDate('${dateStr}')">${day}</div>`;
+            html += `<div class="${classNames}" ${extraStyle} onclick="selectCalendarDate('${dateStr}')">${day}</div>`;
         } else {
             html += `<div class="${classNames}">${day}</div>`;
         }
@@ -3112,14 +3147,24 @@ function renderCalendar() {
 // 點選日期後執行查詢
 async function selectCalendarDate(dateStr) {
     closeCalendarModal();
-    appendUserMessage(`查詢 ${dateStr} 健康摘要`);
+    const dateData = availableSummaryDates.get(dateStr);
     
-    // 因為 processSummarySearch 需要傳入前一天的日期去抓資料
-    const dateObj = new Date(dateStr.replace(/-/g, '/'));
-    dateObj.setDate(dateObj.getDate() - 1);
-    const preDateStr = dateObj.toLocaleDateString('en-CA');
-    
-    await processSummarySearch(preDateStr, dateStr);
+    // 條件3：如果是上述條件2 (只有 TRT_min)，點選後顯示 appendSimpleSummaryCard
+    if (dateData && dateData.hasTRTOnly) {
+        appendUserMessage(`查詢 ${dateStr} 睡眠分析`);
+        // 呼叫你的 Card，並把 TRT_min 的資料帶進去顯示
+        appendSimpleSummaryCard('TST_min', `此日期的總睡眠時間為：${dateData.trtMin} 分鐘`);
+    } else {
+        // 原本 Battery 有數值時走這邊
+        appendUserMessage(`查詢 ${dateStr} 健康摘要`);
+        
+        // 因為 processSummarySearch 需要傳入前一天的日期去抓資料
+        const dateObj = new Date(dateStr.replace(/-/g, '/'));
+        dateObj.setDate(dateObj.getDate() - 1);
+        const preDateStr = dateObj.toLocaleDateString('en-CA');
+        
+        await processSummarySearch(preDateStr, dateStr);
+    }
 }
 </script>
 </body>
