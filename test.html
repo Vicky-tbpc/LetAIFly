@@ -2546,11 +2546,24 @@ async function handleAbnormalityInput(msg) {
         console.error("讀取健康資料失敗:", e);
     }
 
-    // 檢查昨天 (preDateStr) 的資料，以及 Battery_TST_min_A 是否有值
+    // 檢查昨天 (preDateStr) 的資料
     const yesterdayData = allData.find(d => d.record_date === preDateStr);
+    
+    // 💡 關鍵判斷：昨天是否有 raw_json 數據 (決定要不要顯示按鈕)
+    const hasYesterdayRawData = !!(yesterdayData && yesterdayData.raw_json);
     const hasYesterdayBatteryTST = yesterdayData?.raw_json?.Battery_TST_min_A !== undefined && yesterdayData?.raw_json?.Battery_TST_min_A !== null;
-    // --- 💡 新增：檢查昨日資料中是否有 TRT_min ---
-    const hasYesterdayTRT = yesterdayData?.raw_json?.TRT_min !== undefined && yesterdayData?.raw_json?.TRT_min !== null;
+
+    // 產生「開啟睡眠報告」按鈕的 HTML (如果沒有資料就是空字串)
+    const getReportBtnHtml = () => {
+        if (!hasYesterdayRawData) return '';
+        return `
+        <div style="text-align: right; margin-top: 12px;">
+            <button onclick="openSleepReport('${preDateStr}')" style="background-color: #a79d8c; color: white; border: none; padding: 6px 14px; border-radius: 15px; font-size: 0.85em; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+                📄 開啟睡眠報告
+            </button>
+        </div>`;
+    };
+
 
     // ==========================================
     // 情境 A：當天 -1 的 Battery_TST_min_A 有資料
@@ -2577,27 +2590,9 @@ async function handleAbnormalityInput(msg) {
     // 情境 B：當天 -1 的 Battery_TST_min_A 沒有資料
     // ==========================================
     
-    // 為了讓 fallback 小卡可以根據 TRT_min 有無來決定按鈕的 HTML
-    const getFallbackButtonHtml = (hasTRT) => {
-        return hasTRT 
-            ? `<div style="text-align: right; margin-top: 12px;">
-                   <button onclick="openSleepReport('${preDateStr}')" style="background-color: #a79d8c; color: white; border: none; padding: 6px 14px; border-radius: 15px; font-size: 0.85em; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
-                       📄 開啟睡眠報告
-                   </button>
-               </div>`
-            : `<div style="color: #888; font-size: 0.9em; margin-top: 5px;">
-                   （目前尚無足夠數據產生報告）
-               </div>`;
-    };
-
     // 1. 如果資料庫完全沒資料，或是只剩 1 筆(沒有前一天的歷史可以比較)
     if (allData.length <= 1) {
-        // 如果有 TRT 可以看報告，就引導看報告；如果沒有就請他持續戴戒指
-        if (hasYesterdayTRT) {
-            await appendAiMessage("收到了！😊 你可以直接點選下方按鈕查看完整的睡眠報告喔！");
-        } else {
-            await appendAiMessage("收到了！😊 記得佩戴手環記錄睡眠，讓你的健康狀態更清楚掌握！");
-        }
+        await appendAiMessage(hasYesterdayRawData ? "收到了！😊 你可以直接點選下方按鈕查看完整的睡眠報告喔！" : "收到了！😊 記得佩戴手環記錄睡眠，讓你的健康狀態更清楚掌握！");
         
         const fallbackHtml = `
             <div class="ai-message-wrapper">
@@ -2605,7 +2600,7 @@ async function handleAbnormalityInput(msg) {
                     <div style="font-weight: bold; font-size: 1.1em; color: #666;">
                         🛌 睡眠紀錄
                     </div>
-                    ${getFallbackButtonHtml(hasYesterdayTRT)}
+                    ${getReportBtnHtml()}
                 </div>
             </div>`;
         
@@ -2670,11 +2665,7 @@ async function handleAbnormalityInput(msg) {
 
     // 4. 如果因為缺少數值算不出任何比較結果，直接顯示 fallback
     if (!worstMetric) {
-        if (hasYesterdayTRT) {
-            await appendAiMessage("收到了！😊 你可以直接點選下方按鈕查看完整的睡眠報告喔！");
-        } else {
-            await appendAiMessage("收到了！😊 記得佩戴手環記錄睡眠，讓你的健康狀態更清楚掌握！");
-        }
+        await appendAiMessage(hasYesterdayRawData ? "收到了！😊 你可以直接點選下方按鈕查看完整的睡眠報告喔！" : "收到了！😊 記得佩戴手環記錄睡眠，讓你的健康狀態更清楚掌握！");
         
         const fallbackHtml = `
             <div class="ai-message-wrapper">
@@ -2682,7 +2673,7 @@ async function handleAbnormalityInput(msg) {
                     <div style="font-weight: bold; font-size: 1.1em; color: #666;">
                         🛌 睡眠紀錄
                     </div>
-                    ${getFallbackButtonHtml(hasYesterdayTRT)}
+                    ${getReportBtnHtml()}
                 </div>
             </div>`;
         
@@ -2713,11 +2704,10 @@ async function handleAbnormalityInput(msg) {
             .maybeSingle();
 
         if (phraseData && phraseData.detailed_content) {
-            // --- 修改這裡：先說一句話，然後推派小卡 ---
             await appendAiMessage(`收到了！😊 幫你分析了一下最近的數據：`);
             
-            // 呼叫簡易小卡 function
-            appendSimpleSummaryCard(worstMetric, phraseData.detailed_content, preDateStr);
+            // 💡 呼叫簡易小卡，把 hasYesterdayRawData 當參數傳進去決定要不要顯示按鈕
+            appendSimpleSummaryCard(worstMetric, phraseData.detailed_content, preDateStr, hasYesterdayRawData);
             
             // 小卡出現後，再給一個引導
             await new Promise(r => setTimeout(r, 1000));
@@ -2731,26 +2721,34 @@ async function handleAbnormalityInput(msg) {
     }
 }
 
-    function zoomChart(el) { document.getElementById('zoom-container').innerHTML = el.innerHTML; document.getElementById('zoom-overlay').classList.remove('hidden'); }
-    function closeZoom() { document.getElementById('zoom-overlay').classList.add('hidden'); }
-    async function appendAiMessage(text) { 
-    const history = document.getElementById('chat-history'), typingId = 'typing-' + Date.now(); 
-    history.innerHTML += `<div class="msg-row ai-row" id="${typingId}"><div class="ai-bubble"><div class="typing-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div></div>`; 
-    scrollToBottom(); 
-    await new Promise(r => setTimeout(r, 800)); 
-    
-    const typingElem = document.getElementById(typingId); 
-    if (typingElem) {
-        // 1. 處理換行符號
-        let formattedText = text.replace(/\n/g, '<br>');
-        
-        // 2. 將 Markdown 連結 [名稱](網址) 轉換為 HTML 可點擊的超連結 <a>
-        formattedText = formattedText.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" style="color: #0056b3; text-decoration: underline; font-weight: bold;">$1</a>');
-        
-        // 3. 輸出到畫面上
-        typingElem.querySelector('.ai-bubble').innerHTML = formattedText;
+// 💡 對應的簡易小卡實作範例 (加入 hasYesterdayRawData 判斷)
+function appendSimpleSummaryCard(metric, content, reportDate, hasData) {
+    let btnHtml = '';
+    // 若有數據，才把按鈕 HTML 組裝進去
+    if (hasData) {
+        btnHtml = `
+        <div style="text-align: right; margin-top: 12px;">
+            <button onclick="openSleepReport('${reportDate}')" style="background-color: #a79d8c; color: white; border: none; padding: 6px 14px; border-radius: 15px; font-size: 0.85em; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+                📄 開啟睡眠報告
+            </button>
+        </div>`;
     }
-    scrollToBottom(); 
+
+    const html = `
+    <div class="ai-message-wrapper msg-row ai-row">
+        <div class="ai-message" style="max-width: 85%; padding: 15px; border-radius: 18px; border-left: 5px solid #a79d8c; background-color: #ffffff;">
+            <div style="font-weight: bold; font-size: 1.1em; color: #666; margin-bottom: 8px;">
+                📊 數據觀察 (${metric})
+            </div>
+            <div style="font-size: 14px; color: #444; line-height: 1.5;">
+                ${content}
+            </div>
+            ${btnHtml}
+        </div>
+    </div>`;
+    
+    document.getElementById('chat-history').insertAdjacentHTML('beforeend', html);
+    scrollToBottom();
 }
     function appendUserMessage(msg) { document.getElementById('chat-history').innerHTML += `<div class="msg-row user-row"><div class="user-bubble">${msg}</div></div>`; scrollToBottom(); }
     function scrollToBottom() { const m = document.getElementById('main-area'); m.scrollTop = m.scrollHeight; }
@@ -3347,20 +3345,12 @@ async function processSleepAnalysisByDate(targetPreDateStr) {
             .maybeSingle();
 
         if (phraseData && phraseData.detailed_content) {
+            // 先說一句話，然後推派小卡
             await appendAiMessage(`收到了！😊 幫你分析了一下最近的數據：`);
-            
-            // --- 💡 修改這裡：將 hasYesterdayTRT 作為第四個參數傳入 ---
-            appendSimpleSummaryCard(worstMetric, phraseData.detailed_content, preDateStr, hasYesterdayTRT);
-            
-            // 小卡出現後，再給一個引導
-            await new Promise(r => setTimeout(r, 1000));
-            await appendAiMessage("目前還沒有恢復指數的分析，但上面的觀察也很有參考價值。現在想了解哪一部分呢？");
-        } else {
-            await appendAiMessage("收到了！😊 現在想從哪個部分開始了解呢？");
+            appendSimpleSummaryCard(worstMetric, phraseData.detailed_content, targetPreDateStr);
         }
     } catch (e) {
-        console.error("讀取 phrase_library 失敗:", e);
-        await appendAiMessage("收到了！😊 現在想從哪個部分開始了解呢？");
+        console.error("Supabase 查詢錯誤：", e);
     }
 }
 </script>
