@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Soosyn 健康夥伴 n092-4</title>
+    <title>Soosyn 健康夥伴 n093</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -2550,6 +2550,17 @@ async function handleAbnormalityInput(msg) {
     const yesterdayData = allData.find(d => d.record_date === preDateStr);
     const hasYesterdayBatteryTST = yesterdayData?.raw_json?.Battery_TST_min_A !== undefined && yesterdayData?.raw_json?.Battery_TST_min_A !== null;
 
+    // 👇 新增：檢查當天-1 的 "TRT_min" 是否有資料
+    const hasYesterdayTRT = yesterdayData?.raw_json?.TRT_min !== undefined && yesterdayData?.raw_json?.TRT_min !== null;
+
+    // 根據是否有 TRT_min 決定是否顯示睡眠報告按鈕
+    const reportButtonHtml = hasYesterdayTRT ? `
+        <div style="text-align: right;">
+            <button onclick="openSleepReport('${preDateStr}')" style="background-color: #a79d8c; color: white; border: none; padding: 6px 14px; border-radius: 15px; font-size: 0.85em; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+                📄 開啟睡眠報告
+            </button>
+        </div>` : '';
+
 
     // ==========================================
     // 情境 A：當天 -1 的 Battery_TST_min_A 有資料
@@ -2578,7 +2589,20 @@ async function handleAbnormalityInput(msg) {
     
     // 1. 如果資料庫完全沒資料，或是只剩 1 筆(沒有前一天的歷史可以比較)
     if (allData.length <= 1) {
-        await appendAiMessage("收到了！😊 現在想從哪個部分開始了解呢？");
+        await appendAiMessage("收到了！😊 你可以直接點選下方按鈕查看完整的睡眠報告喔！");
+        
+        const fallbackHtml = `
+            <div class="ai-message-wrapper">
+                <div class="ai-message" style="max-width: 85%; padding: 15px; border-radius: 18px; border-left: 5px solid #a79d8c; background-color: #ffffff;">
+                    <div style="font-weight: bold; font-size: 1.1em; color: #666; margin-bottom: 12px;">
+                        🛌 睡眠紀錄
+                    </div>
+                    ${reportButtonHtml}
+                </div>
+            </div>`;
+        
+        document.getElementById('chat-history').insertAdjacentHTML('beforeend', fallbackHtml);
+        scrollToBottom();
         return;
     }
 
@@ -2638,7 +2662,20 @@ async function handleAbnormalityInput(msg) {
 
     // 4. 如果因為缺少數值算不出任何比較結果，直接顯示 fallback
     if (!worstMetric) {
-        await appendAiMessage("收到了！😊 現在想從哪個部分開始了解呢？");
+        await appendAiMessage("收到了！😊 你可以直接點選下方按鈕查看完整的睡眠報告喔！");
+        
+        const fallbackHtml = `
+            <div class="ai-message-wrapper">
+                <div class="ai-message" style="max-width: 85%; padding: 15px; border-radius: 18px; border-left: 5px solid #a79d8c; background-color: #ffffff;">
+                    <div style="font-weight: bold; font-size: 1.1em; color: #666; margin-bottom: 12px;">
+                        🛌 睡眠紀錄
+                    </div>
+                    ${reportButtonHtml}
+                </div>
+            </div>`;
+        
+        document.getElementById('chat-history').insertAdjacentHTML('beforeend', fallbackHtml);
+        scrollToBottom();
         return;
     }
 
@@ -2665,10 +2702,10 @@ async function handleAbnormalityInput(msg) {
 
         if (phraseData && phraseData.detailed_content) {
             // --- 修改這裡：先說一句話，然後推派小卡 ---
-            await appendAiMessage(`收到了！😊 幫你分析了一下最近的數據：`);
+            await appendAiMessage(`收到了！😊 幫你分析了一下數據：`);
             
-            // 呼叫簡易小卡 function
-            appendSimpleSummaryCard(worstMetric, phraseData.detailed_content);
+            // 👇 呼叫簡易小卡 function (傳入第四個參數 hasYesterdayTRT 決定小卡內按鈕是否顯示)
+            appendSimpleSummaryCard(worstMetric, phraseData.detailed_content, preDateStr, hasYesterdayTRT);
             
             // 小卡出現後，再給一個引導
             await new Promise(r => setTimeout(r, 1000));
@@ -2681,7 +2718,6 @@ async function handleAbnormalityInput(msg) {
         await appendAiMessage("收到了！😊 現在想從哪個部分開始了解呢？");
     }
 }
-
     function zoomChart(el) { document.getElementById('zoom-container').innerHTML = el.innerHTML; document.getElementById('zoom-overlay').classList.remove('hidden'); }
     function closeZoom() { document.getElementById('zoom-overlay').classList.add('hidden'); }
     async function appendAiMessage(text) { 
@@ -2967,7 +3003,7 @@ async function callGreetingAPI(name, aiName, aiData) {
     }
 }
 
-function appendSimpleSummaryCard(metricName, detailedContent) {
+function appendSimpleSummaryCard(metricName, detailedContent, recordDate, showSleepReport = false) {
     const config = {
         'TST_min': { icon: '🛌', label: '總睡眠時間', color: '#a79d8c' },
         'N3_pct': { icon: '💤', label: '深睡期 (N3)', color: '#a79d8c' },
@@ -2978,6 +3014,14 @@ function appendSimpleSummaryCard(metricName, detailedContent) {
 
     const style = config[metricName] || { icon: '📊', label: '健康指標', color: '#a79d8c' };
 
+    // 根據 showSleepReport 決定是否顯示睡眠報告按鈕區塊
+    const reportButtonHtml = showSleepReport ? `
+        <div style="text-align: right; border-top: 1px dashed #e0e0e0; padding-top: 10px;">
+            <button onclick="openSleepReport('${recordDate}')" style="background-color: ${style.color}; color: white; border: none; padding: 6px 14px; border-radius: 15px; font-size: 0.85em; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+                📄 開啟睡眠報告
+            </button>
+        </div>` : '';
+
     const html = `
         <div class="ai-message-wrapper">
             <div class="ai-message" style="max-width: 85%; padding: 15px; border-radius: 18px; border-left: 5px solid ${style.color}; background-color: #ffffff;">
@@ -2985,21 +3029,26 @@ function appendSimpleSummaryCard(metricName, detailedContent) {
                     <span style="font-weight: bold; font-size: 1.1em;">近期睡眠分析</span>
                     <span style="font-size: 0.9em; background: #eee; padding: 4px 10px; border-radius: 10px; white-space: nowrap;">${style.label}</span>
                 </div>
-                <div style="display: flex; align-items: center;">
+                <div style="display: flex; align-items: flex-start; margin-bottom: 12px;">
                     <div style="font-size: 24px; margin-right: 12px;">${style.icon}</div>
                     <div style="font-size: 0.95em; line-height: 1.4; color: #333;">
                         ${detailedContent}
                     </div>
                 </div>
+                
+                ${reportButtonHtml}
             </div>
         </div>`;
     
     document.getElementById('chat-history').insertAdjacentHTML('beforeend', html);
     scrollToBottom();
 }
+
 // --- 日曆功能 ---
 let currentCalDate = new Date();
 let availableSummaryDates = new Map();
+// 新增：用來存放拉回來的所有健康數據，方便計算歷史平均
+let userHealthDataList = []; 
 
 // 打開日曆並獲取有資料的日期
 async function openCalendarModal() {
@@ -3012,7 +3061,7 @@ async function openCalendarModal() {
     currentCalDate = new Date();
     document.getElementById('calendar-overlay').classList.remove('hidden');
     
-    // 渲染骨架，並顯示載入中... (可視需求)
+    // 渲染骨架，並顯示載入中... 
     renderCalendar(); 
     
     await fetchAvailableSummaryDates();
@@ -3031,21 +3080,38 @@ async function fetchAvailableSummaryDates() {
         const params = new URLSearchParams({ serial: currentSerial }).toString();
         const response = await fetch(`/api/health?${params}`);
         if (response.ok) {
-            const allData = await response.json();
+            const rawData = await response.json();
+            // 確保留下來的資料是新到舊排序，這樣我們取 allData[0] 才會是選中的當天
+            userHealthDataList = rawData.sort((a, b) => new Date(b.record_date) - new Date(a.record_date));
+            
             availableSummaryDates.clear(); // 清空舊資料
             
-            allData.forEach(d => {
-                if (d.raw_json && d.raw_json.Personal_Battery_weighted_round != null) {
-                    // 健康摘要的顯示日期 = 紀錄日期 (record_date) + 1 天
-                    const dateObj = new Date(d.record_date.replace(/-/g, '/'));
-                    dateObj.setDate(dateObj.getDate() + 1);
-                    const displayDate = dateObj.toLocaleDateString('en-CA');
+            userHealthDataList.forEach(d => {
+                if (d.raw_json) {
+                    const battery = d.raw_json.Personal_Battery_weighted_round;
+                    const trt = d.raw_json.TRT_min;
                     
-                    // 取得 raw_json 裡面的燈號，如果沒有就給空字串
-                    const light = d.raw_json.light_status || '';
-                    
-                    // 將「日期」作為 key，「燈號」作為 value 存起來
-                    availableSummaryDates.set(displayDate, light);
+                    // 判斷是否有值
+                    const hasBattery = battery !== null && battery !== undefined;
+                    const hasTRT = trt !== null && trt !== undefined;
+
+                    // 條件1 & 2：只要其中一個有值就要顯示；如果兩個都是 null/undefined 就不做任何事
+                    if (hasBattery || hasTRT) {
+                        // 健康摘要的顯示日期 = 紀錄日期 (record_date) + 1 天
+                        const dateObj = new Date(d.record_date.replace(/-/g, '/'));
+                        dateObj.setDate(dateObj.getDate() + 1);
+                        const displayDate = dateObj.toLocaleDateString('en-CA');
+                        
+                        const light = d.raw_json.light_status || '';
+                        
+                        // 儲存狀態物件，讓渲染與點擊事件都能判斷
+                        availableSummaryDates.set(displayDate, {
+                            hasBattery: hasBattery,
+                            hasTRTOnly: !hasBattery && hasTRT, // 代表只有 TRT 有值
+                            light: light,
+                            trtMin: trt
+                        });
+                    }
                 }
             });
         }
@@ -3085,28 +3151,34 @@ function renderCalendar() {
     
     const todayStr = getLocalDateString();
 
-// 產生每一天
+    // 產生每一天
     for (let day = 1; day <= daysInMonth; day++) {
         const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         
-        // 使用 .has() 判斷有沒有資料
-        const hasData = availableSummaryDates.has(dateStr);
+        // 取得該日期的資料狀態
+        const dateData = availableSummaryDates.get(dateStr);
+        const hasData = !!dateData;
         const isToday = dateStr === todayStr;
         
         let classNames = 'calendar-day';
+        let extraStyle = '';
         
         if (hasData) {
             classNames += ' has-data';
-            // 取出之前存好的燈號
-            const light = availableSummaryDates.get(dateStr);
             
-            // 根據燈號加上對應的 CSS class
-            if (light === '綠燈') classNames += ' status-green';
-            else if (light === '黃燈') classNames += ' status-yellow';
-            else if (light === '黃紅燈') classNames += ' status-orange';
-            else if (light === '紅燈') classNames += ' status-red';
-            else classNames += ' status-default'; 
-            
+            // 條件2：只有 TRT_min 有數值且 Battery 沒有數值時
+            if (dateData.hasTRTOnly) {
+                // 改為套用 status-default 樣式類別
+                classNames += ' status-default';
+            } 
+            // 條件1：Battery 有數值，依據 light_status 呈現
+            else {
+                if (dateData.light === '綠燈') classNames += ' status-green';
+                else if (dateData.light === '黃燈') classNames += ' status-yellow';
+                else if (dateData.light === '黃紅燈') classNames += ' status-orange';
+                else if (dateData.light === '紅燈') classNames += ' status-red';
+                else classNames += ' status-default'; 
+            }
         } else {
             classNames += ' disabled'; // 無資料反灰
         }
@@ -3114,7 +3186,7 @@ function renderCalendar() {
         if (isToday) classNames += ' today';
         
         if (hasData) {
-            html += `<div class="${classNames}" onclick="selectCalendarDate('${dateStr}')">${day}</div>`;
+            html += `<div class="${classNames}" ${extraStyle} onclick="selectCalendarDate('${dateStr}')">${day}</div>`;
         } else {
             html += `<div class="${classNames}">${day}</div>`;
         }
@@ -3126,14 +3198,160 @@ function renderCalendar() {
 // 點選日期後執行查詢
 async function selectCalendarDate(dateStr) {
     closeCalendarModal();
-    appendUserMessage(`查詢 ${dateStr} 健康摘要`);
+    const dateData = availableSummaryDates.get(dateStr);
     
-    // 因為 processSummarySearch 需要傳入前一天的日期去抓資料
+    // 將顯示日期轉回前一天的紀錄日期
     const dateObj = new Date(dateStr.replace(/-/g, '/'));
     dateObj.setDate(dateObj.getDate() - 1);
     const preDateStr = dateObj.toLocaleDateString('en-CA');
     
-    await processSummarySearch(preDateStr, dateStr);
+    // 條件3：如果是上述條件2 (只有 TRT_min)，點選後執行「找出惡化最多指標」並推派小卡的邏輯
+    if (dateData && dateData.hasTRTOnly) {
+        appendUserMessage(`查詢 ${dateStr} 睡眠分析`);
+        await processSleepAnalysisByDate(preDateStr);
+    } else {
+        // 原本 Battery 有數值時走這邊
+        appendUserMessage(`查詢 ${dateStr} 健康摘要`);
+        await processSummarySearch(preDateStr, dateStr);
+    }
+}
+
+// ==========================================
+// 新增一支獨立 function，直接套用你寫好的邏輯
+// ==========================================
+async function processSleepAnalysisByDate(targetPreDateStr) {
+    // 1. 從我們先前存好的資料，找出目標日期的 index
+    const targetIndex = userHealthDataList.findIndex(d => d.record_date === targetPreDateStr);
+    
+    if (targetIndex === -1) {
+        await appendAiMessage("找不到該日期的詳細數據喔！");
+        return;
+    }
+
+    // 取出從「該天(含)以前」的所有資料，這樣 allData[0] 就會是我們點擊的那一天
+    const allData = userHealthDataList.slice(targetIndex);
+
+    // ======= 以下完全套用你提供的判斷邏輯 =======
+    const latestData = allData[0]; // 擷取資料庫中最新的那一筆
+    const pastData = allData.slice(1); // 剩下的歷史數據
+    const fields = ['TST_min', 'N3_pct', 'rMSSD', 'HBI', 'HR_min'];
+    let baseline = {};
+
+    // 👇 新增：檢查這一筆資料的 TRT_min 是否有值
+    const currentRaw = latestData.raw_json || {};
+    const hasTRT = currentRaw.TRT_min !== undefined && currentRaw.TRT_min !== null;
+
+    // 👇 根據是否有 TRT_min 決定是否顯示睡眠報告按鈕
+    const reportButtonHtml = hasTRT ? `
+        <div style="text-align: right;">
+            <button onclick="openSleepReport('${targetPreDateStr}')" style="background-color: #a79d8c; color: white; border: none; padding: 6px 14px; border-radius: 15px; font-size: 0.85em; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+                📄 開啟睡眠報告
+            </button>
+        </div>` : '';
+
+    // 2. 決定比較基準：有3天歷史就算平均，沒有3天就只抓前一天
+    if (pastData.length >= 3) {
+        const recent3 = pastData.slice(0, 3);
+        fields.forEach(f => {
+            let sum = 0, count = 0;
+            recent3.forEach(d => {
+                if (d.raw_json && d.raw_json[f] !== undefined) {
+                    sum += Number(d.raw_json[f]);
+                    count++;
+                }
+            });
+            // 按照實際有數據的天數來除以取得平均值
+            baseline[f] = count > 0 ? sum / count : null;
+        });
+    } else if (pastData.length > 0) { 
+        // 加上判斷確保 pastData 裡面真的有資料才抓 prev1，避免剛好是第一天使用時報錯
+        const prev1 = pastData[0];
+        fields.forEach(f => {
+            baseline[f] = (prev1.raw_json && prev1.raw_json[f] !== undefined) ? Number(prev1.raw_json[f]) : null;
+        });
+    } else {
+        // 如果完全沒有歷史資料可以比
+        fields.forEach(f => baseline[f] = null);
+    }
+
+    // 3. 找出差異(惡化)最多的指標
+    let maxDeviation = -Infinity;
+    let worstMetric = null;
+
+    fields.forEach(f => {
+        const currentVal = currentRaw[f];
+        const baseVal = baseline[f];
+
+        if (currentVal !== undefined && baseVal !== null && baseVal !== 0) {
+            let deviation = 0;
+            // 將差異轉換為百分比幅度，以便不同單位的指標能公平比較
+            if (f === 'TST_min' || f === 'N3_pct' || f === 'rMSSD') {
+                // 越低越差：(基準值 - 當前值) / 基準值 => 正值越大代表下降越多
+                deviation = (baseVal - currentVal) / Math.abs(baseVal);
+            } else if (f === 'HBI' || f === 'HR_min') {
+                // 越高越差：(當前值 - 基準值) / 基準值 => 正值越大代表上升越多
+                deviation = (currentVal - baseVal) / Math.abs(baseVal);
+            }
+
+            if (deviation > maxDeviation) {
+                maxDeviation = deviation;
+                worstMetric = f;
+            }
+        }
+    });
+
+    // 4. 如果因為缺少數值算不出任何比較結果 (例如第一天使用，沒有歷史數據)
+    if (!worstMetric) {
+        // 給一句適合第一天使用的專屬對話
+        await appendAiMessage("收到了！😊 你可以直接點選下方按鈕查看完整的睡眠報告喔！");
+        
+        // 直接推派一張帶有 PDF 按鈕的簡化版卡片 (加入 reportButtonHtml 判斷)
+        const fallbackHtml = `
+            <div class="ai-message-wrapper">
+                <div class="ai-message" style="max-width: 85%; padding: 15px; border-radius: 18px; border-left: 5px solid #a79d8c; background-color: #ffffff;">
+                    <div style="font-weight: bold; font-size: 1.1em; color: #666; margin-bottom: 12px;">
+                        🛌 睡眠紀錄
+                    </div>
+                    ${reportButtonHtml}
+                </div>
+            </div>`;
+        
+        document.getElementById('chat-history').insertAdjacentHTML('beforeend', fallbackHtml);
+        scrollToBottom();
+        
+        return;
+    }
+
+    // 5. 轉換為 phrase_library 對應的 logic_key 前綴
+    const metricPrefixMap = {
+        'TST_min': 'Battery 總睡眠時間',
+        'N3_pct': 'Battery N3',
+        'rMSSD': 'Battery rMSSD',
+        'HBI': 'Battery HBI',
+        'HR_min': 'Battery 最低脈搏'
+    };
+
+    const prefix = metricPrefixMap[worstMetric];
+    const randomNum = Math.floor(Math.random() * 3) + 1; // 隨機 1、2、3
+    const logicKey = `${prefix}最差${randomNum}`;
+
+    try {
+        const { data: phraseData } = await _supabase
+            .from('phrase_library')
+            .select('detailed_content')
+            .eq('logic_key', logicKey)
+            .limit(1)
+            .maybeSingle();
+
+        if (phraseData && phraseData.detailed_content) {
+            // 先說一句話，然後推派小卡
+            await appendAiMessage(`收到了！😊 幫你分析了一下數據：`);
+            // 👇 修改這裡：把 hasTRT 當作第四個參數傳進去
+            appendSimpleSummaryCard(worstMetric, phraseData.detailed_content, targetPreDateStr, hasTRT);
+        }
+    } catch (e) {
+        console.error("Supabase 查詢錯誤：", e);
+    }
 }
 </script>
 </body>
