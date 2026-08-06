@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Soosyn 健康夥伴 n093</title>
+    <title>Soosyn 健康夥伴 n093-2</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -2967,7 +2967,7 @@ async function callGreetingAPI(name, aiName, aiData) {
     }
 }
 
-function appendSimpleSummaryCard(metricName, detailedContent) {
+function appendSimpleSummaryCard(metricName, detailedContent, recordDate) {
     const config = {
         'TST_min': { icon: '🛌', label: '總睡眠時間', color: '#a79d8c' },
         'N3_pct': { icon: '💤', label: '深睡期 (N3)', color: '#a79d8c' },
@@ -2985,11 +2985,18 @@ function appendSimpleSummaryCard(metricName, detailedContent) {
                     <span style="font-weight: bold; font-size: 1.1em;">近期睡眠分析</span>
                     <span style="font-size: 0.9em; background: #eee; padding: 4px 10px; border-radius: 10px; white-space: nowrap;">${style.label}</span>
                 </div>
-                <div style="display: flex; align-items: center;">
+                <div style="display: flex; align-items: flex-start; margin-bottom: 12px;">
                     <div style="font-size: 24px; margin-right: 12px;">${style.icon}</div>
                     <div style="font-size: 0.95em; line-height: 1.4; color: #333;">
                         ${detailedContent}
                     </div>
+                </div>
+                
+                <!-- 新增的 PDF 按鈕區塊 -->
+                <div style="text-align: right; border-top: 1px dashed #e0e0e0; padding-top: 10px;">
+                    <button onclick="openSleepReport('${data.date}')" style="background-color: ${style.color}; color: white; border: none; padding: 6px 14px; border-radius: 15px; font-size: 0.85em; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+                        📄 開啟睡眠報告
+                    </button>
                 </div>
             </div>
         </div>`;
