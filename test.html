@@ -3283,7 +3283,7 @@ async function processSleepAnalysisByDate(targetPreDateStr) {
             await appendAiMessage(`收到了！😊 幫你分析了一下最近的數據：`);
             
             // 呼叫簡易小卡 function
-            appendSimpleSummaryCard(worstMetric, phraseData.detailed_content);
+            appendSimpleSummaryCard(metricName, detailedContent, recordDate);
         }
     } catch (e) {
         console.error("Supabase 查詢錯誤：", e);
