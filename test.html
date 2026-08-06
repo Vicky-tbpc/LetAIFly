@@ -3163,9 +3163,8 @@ function renderCalendar() {
             
             // 條件2：只有 TRT_min 有數值且 Battery 沒有數值時
             if (dateData.hasTRTOnly) {
-                // 使用你指定的顏色 --tbp-light-blue
-                extraStyle = 'style="background-color: var(--tbp-light-blue); color: #fff;"'; 
-                classNames += ' status-trt-only';
+                // 改為套用 status-default 樣式類別
+                classNames += ' status-default';
             } 
             // 條件1：Battery 有數值，依據 light_status 呈現
             else {
