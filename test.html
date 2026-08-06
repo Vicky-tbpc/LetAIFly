@@ -2994,7 +2994,7 @@ function appendSimpleSummaryCard(metricName, detailedContent, recordDate) {
                 
                 <!-- 新增的 PDF 按鈕區塊 -->
                 <div style="text-align: right; border-top: 1px dashed #e0e0e0; padding-top: 10px;">
-                    <button onclick="openSleepReport('${data.date}')" style="background-color: ${style.color}; color: white; border: none; padding: 6px 14px; border-radius: 15px; font-size: 0.85em; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+                    <button onclick="openSleepReport('${recordDate}')" style="background-color: ${style.color}; color: white; border: none; padding: 6px 14px; border-radius: 15px; font-size: 0.85em; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
                         📄 開啟睡眠報告
                     </button>
                 </div>
@@ -3281,9 +3281,7 @@ async function processSleepAnalysisByDate(targetPreDateStr) {
         if (phraseData && phraseData.detailed_content) {
             // 先說一句話，然後推派小卡
             await appendAiMessage(`收到了！😊 幫你分析了一下最近的數據：`);
-            
-            // 呼叫簡易小卡 function
-            appendSimpleSummaryCard(metricName, detailedContent, recordDate);
+            appendSimpleSummaryCard(worstMetric, phraseData.detailed_content, targetPreDateStr);
         }
     } catch (e) {
         console.error("Supabase 查詢錯誤：", e);
