@@ -2587,7 +2587,7 @@ async function handleAbnormalityInput(msg) {
                         🛌 首日睡眠紀錄
                     </div>
                     <div style="text-align: right;">
-                        <button onclick="openSleepReport('${targetPreDateStr}')" style="background-color: #a79d8c; color: white; border: none; padding: 6px 14px; border-radius: 15px; font-size: 0.85em; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+                        <button onclick="openSleepReport('${preDateStr}')" style="background-color: #a79d8c; color: white; border: none; padding: 6px 14px; border-radius: 15px; font-size: 0.85em; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
                             📄 開啟睡眠報告
                         </button>
                     </div>
@@ -2664,7 +2664,7 @@ async function handleAbnormalityInput(msg) {
                         🛌 睡眠紀錄
                     </div>
                     <div style="text-align: right;">
-                        <button onclick="openSleepReport('${targetPreDateStr}')" style="background-color: #a79d8c; color: white; border: none; padding: 6px 14px; border-radius: 15px; font-size: 0.85em; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+                        <button onclick="openSleepReport('${preDateStr}')" style="background-color: #a79d8c; color: white; border: none; padding: 6px 14px; border-radius: 15px; font-size: 0.85em; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
                             📄 開啟睡眠報告
                         </button>
                     </div>
@@ -2702,7 +2702,7 @@ async function handleAbnormalityInput(msg) {
             await appendAiMessage(`收到了！😊 幫你分析了一下最近的數據：`);
             
             // 呼叫簡易小卡 function
-            appendSimpleSummaryCard(worstMetric, phraseData.detailed_content, targetPreDateStr);
+            appendSimpleSummaryCard(worstMetric, phraseData.detailed_content, preDateStr);
             
             // 小卡出現後，再給一個引導
             await new Promise(r => setTimeout(r, 1000));
