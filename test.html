@@ -2549,7 +2549,8 @@ async function handleAbnormalityInput(msg) {
     // 檢查昨天 (preDateStr) 的資料，以及 Battery_TST_min_A 是否有值
     const yesterdayData = allData.find(d => d.record_date === preDateStr);
     const hasYesterdayBatteryTST = yesterdayData?.raw_json?.Battery_TST_min_A !== undefined && yesterdayData?.raw_json?.Battery_TST_min_A !== null;
-
+    // --- 💡 新增：檢查昨日資料中是否有 TRT_min ---
+    const hasYesterdayTRT = yesterdayData?.raw_json?.TRT_min !== undefined && yesterdayData?.raw_json?.TRT_min !== null;
 
     // ==========================================
     // 情境 A：當天 -1 的 Battery_TST_min_A 有資料
@@ -2576,19 +2577,35 @@ async function handleAbnormalityInput(msg) {
     // 情境 B：當天 -1 的 Battery_TST_min_A 沒有資料
     // ==========================================
     
+    // 為了讓 fallback 小卡可以根據 TRT_min 有無來決定按鈕的 HTML
+    const getFallbackButtonHtml = (hasTRT) => {
+        return hasTRT 
+            ? `<div style="text-align: right; margin-top: 12px;">
+                   <button onclick="openSleepReport('${preDateStr}')" style="background-color: #a79d8c; color: white; border: none; padding: 6px 14px; border-radius: 15px; font-size: 0.85em; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+                       📄 開啟睡眠報告
+                   </button>
+               </div>`
+            : `<div style="color: #888; font-size: 0.9em; margin-top: 5px;">
+                   （目前尚無足夠數據產生報告）
+               </div>`;
+    };
+
     // 1. 如果資料庫完全沒資料，或是只剩 1 筆(沒有前一天的歷史可以比較)
     if (allData.length <= 1) {
-        await appendAiMessage("收到了！😊 目前還沒有足夠的睡眠數據可以產生報告，只要持續配戴戒指，之後就會有完整的紀錄喔！");
+        // 如果有 TRT 可以看報告，就引導看報告；如果沒有就請他持續戴戒指
+        if (hasYesterdayTRT) {
+            await appendAiMessage("收到了！😊 你可以直接點選下方按鈕查看完整的睡眠報告喔！");
+        } else {
+            await appendAiMessage("收到了！😊 記得佩戴手環記錄睡眠，讓你的健康狀態更清楚掌握！");
+        }
         
         const fallbackHtml = `
             <div class="ai-message-wrapper">
                 <div class="ai-message" style="max-width: 85%; padding: 15px; border-radius: 18px; border-left: 5px solid #a79d8c; background-color: #ffffff;">
-                    <div style="font-weight: bold; font-size: 1.1em; color: #666; margin-bottom: 5px;">
+                    <div style="font-weight: bold; font-size: 1.1em; color: #666;">
                         🛌 睡眠紀錄
                     </div>
-                    <div style="color: #888; font-size: 0.9em;">
-                        （目前尚無足夠數據產生報告）
-                    </div>
+                    ${getFallbackButtonHtml(hasYesterdayTRT)}
                 </div>
             </div>`;
         
@@ -2596,7 +2613,6 @@ async function handleAbnormalityInput(msg) {
         scrollToBottom();
         return;
     }
-
 
     const latestData = allData[0]; // 擷取資料庫中最新的那一筆
     const pastData = allData.slice(1); // 剩下的歷史數據
@@ -2654,17 +2670,19 @@ async function handleAbnormalityInput(msg) {
 
     // 4. 如果因為缺少數值算不出任何比較結果，直接顯示 fallback
     if (!worstMetric) {
-        await appendAiMessage("收到了！😊 今天的數據不足以跟過去比較，只要持續紀錄，之後就會越來越準確喔！");
+        if (hasYesterdayTRT) {
+            await appendAiMessage("收到了！😊 你可以直接點選下方按鈕查看完整的睡眠報告喔！");
+        } else {
+            await appendAiMessage("收到了！😊 記得佩戴手環記錄睡眠，讓你的健康狀態更清楚掌握！");
+        }
         
         const fallbackHtml = `
             <div class="ai-message-wrapper">
                 <div class="ai-message" style="max-width: 85%; padding: 15px; border-radius: 18px; border-left: 5px solid #a79d8c; background-color: #ffffff;">
-                    <div style="font-weight: bold; font-size: 1.1em; color: #666; margin-bottom: 5px;">
+                    <div style="font-weight: bold; font-size: 1.1em; color: #666;">
                         🛌 睡眠紀錄
                     </div>
-                    <div style="color: #888; font-size: 0.9em;">
-                        （目前尚無足夠數據產生報告）
-                    </div>
+                    ${getFallbackButtonHtml(hasYesterdayTRT)}
                 </div>
             </div>`;
         
@@ -2672,7 +2690,6 @@ async function handleAbnormalityInput(msg) {
         scrollToBottom();
         return;
     }
-
 
     // 5. 轉換為 phrase_library 對應的 logic_key 前綴
     const metricPrefixMap = {
