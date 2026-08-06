@@ -2997,9 +2997,12 @@ function appendSimpleSummaryCard(metricName, detailedContent) {
     document.getElementById('chat-history').insertAdjacentHTML('beforeend', html);
     scrollToBottom();
 }
+
 // --- 日曆功能 ---
 let currentCalDate = new Date();
 let availableSummaryDates = new Map();
+// 新增：用來存放拉回來的所有健康數據，方便計算歷史平均
+let userHealthDataList = []; 
 
 // 打開日曆並獲取有資料的日期
 async function openCalendarModal() {
@@ -3012,7 +3015,7 @@ async function openCalendarModal() {
     currentCalDate = new Date();
     document.getElementById('calendar-overlay').classList.remove('hidden');
     
-    // 渲染骨架，並顯示載入中... (可視需求)
+    // 渲染骨架，並顯示載入中... 
     renderCalendar(); 
     
     await fetchAvailableSummaryDates();
@@ -3031,10 +3034,13 @@ async function fetchAvailableSummaryDates() {
         const params = new URLSearchParams({ serial: currentSerial }).toString();
         const response = await fetch(`/api/health?${params}`);
         if (response.ok) {
-            const allData = await response.json();
+            const rawData = await response.json();
+            // 確保留下來的資料是新到舊排序，這樣我們取 allData[0] 才會是選中的當天
+            userHealthDataList = rawData.sort((a, b) => new Date(b.record_date) - new Date(a.record_date));
+            
             availableSummaryDates.clear(); // 清空舊資料
             
-            allData.forEach(d => {
+            userHealthDataList.forEach(d => {
                 if (d.raw_json) {
                     const battery = d.raw_json.Personal_Battery_weighted_round;
                     const trt = d.raw_json.TRT_min;
@@ -3149,21 +3155,131 @@ async function selectCalendarDate(dateStr) {
     closeCalendarModal();
     const dateData = availableSummaryDates.get(dateStr);
     
-    // 條件3：如果是上述條件2 (只有 TRT_min)，點選後顯示 appendSimpleSummaryCard
+    // 將顯示日期轉回前一天的紀錄日期
+    const dateObj = new Date(dateStr.replace(/-/g, '/'));
+    dateObj.setDate(dateObj.getDate() - 1);
+    const preDateStr = dateObj.toLocaleDateString('en-CA');
+    
+    // 條件3：如果是上述條件2 (只有 TRT_min)，點選後執行「找出惡化最多指標」並推派小卡的邏輯
     if (dateData && dateData.hasTRTOnly) {
         appendUserMessage(`查詢 ${dateStr} 睡眠分析`);
-        // 呼叫你的 Card，並把 TRT_min 的資料帶進去顯示
-        appendSimpleSummaryCard(worstMetric, phraseData.detailed_content);
+        await processSleepAnalysisByDate(preDateStr);
     } else {
         // 原本 Battery 有數值時走這邊
         appendUserMessage(`查詢 ${dateStr} 健康摘要`);
-        
-        // 因為 processSummarySearch 需要傳入前一天的日期去抓資料
-        const dateObj = new Date(dateStr.replace(/-/g, '/'));
-        dateObj.setDate(dateObj.getDate() - 1);
-        const preDateStr = dateObj.toLocaleDateString('en-CA');
-        
         await processSummarySearch(preDateStr, dateStr);
+    }
+}
+
+// ==========================================
+// 新增一支獨立 function，直接套用你寫好的邏輯
+// ==========================================
+async function processSleepAnalysisByDate(targetPreDateStr) {
+    // 1. 從我們先前存好的資料，找出目標日期的 index
+    const targetIndex = userHealthDataList.findIndex(d => d.record_date === targetPreDateStr);
+    
+    if (targetIndex === -1) {
+        await appendAiMessage("找不到該日期的詳細數據喔！");
+        return;
+    }
+
+    // 取出從「該天(含)以前」的所有資料，這樣 allData[0] 就會是我們點擊的那一天
+    const allData = userHealthDataList.slice(targetIndex);
+
+    // ======= 以下完全套用你提供的判斷邏輯 =======
+    const latestData = allData[0]; // 擷取資料庫中最新的那一筆
+    const pastData = allData.slice(1); // 剩下的歷史數據
+    const fields = ['TST_min', 'N3_pct', 'rMSSD', 'HBI', 'HR_min'];
+    let baseline = {};
+
+    // 2. 決定比較基準：有3天歷史就算平均，沒有3天就只抓前一天
+    if (pastData.length >= 3) {
+        const recent3 = pastData.slice(0, 3);
+        fields.forEach(f => {
+            let sum = 0, count = 0;
+            recent3.forEach(d => {
+                if (d.raw_json && d.raw_json[f] !== undefined) {
+                    sum += Number(d.raw_json[f]);
+                    count++;
+                }
+            });
+            // 按照實際有數據的天數來除以取得平均值
+            baseline[f] = count > 0 ? sum / count : null;
+        });
+    } else if (pastData.length > 0) { 
+        // 加上判斷確保 pastData 裡面真的有資料才抓 prev1，避免剛好是第一天使用時報錯
+        const prev1 = pastData[0];
+        fields.forEach(f => {
+            baseline[f] = (prev1.raw_json && prev1.raw_json[f] !== undefined) ? Number(prev1.raw_json[f]) : null;
+        });
+    } else {
+        // 如果完全沒有歷史資料可以比
+        fields.forEach(f => baseline[f] = null);
+    }
+
+    // 3. 找出差異(惡化)最多的指標
+    let maxDeviation = -Infinity;
+    let worstMetric = null;
+    const currentRaw = latestData.raw_json || {};
+
+    fields.forEach(f => {
+        const currentVal = currentRaw[f];
+        const baseVal = baseline[f];
+
+        if (currentVal !== undefined && baseVal !== null && baseVal !== 0) {
+            let deviation = 0;
+            // 將差異轉換為百分比幅度，以便不同單位的指標能公平比較
+            if (f === 'TST_min' || f === 'N3_pct' || f === 'rMSSD') {
+                // 越低越差：(基準值 - 當前值) / 基準值 => 正值越大代表下降越多
+                deviation = (baseVal - currentVal) / Math.abs(baseVal);
+            } else if (f === 'HBI' || f === 'HR_min') {
+                // 越高越差：(當前值 - 基準值) / 基準值 => 正值越大代表上升越多
+                deviation = (currentVal - baseVal) / Math.abs(baseVal);
+            }
+
+            if (deviation > maxDeviation) {
+                maxDeviation = deviation;
+                worstMetric = f;
+            }
+        }
+    });
+
+    // 4. 如果因為缺少數值算不出任何比較結果，直接顯示 fallback
+    if (!worstMetric) {
+        await appendAiMessage("收到了！😊 現在想從哪個部分開始了解呢？");
+        return;
+    }
+
+    // 5. 轉換為 phrase_library 對應的 logic_key 前綴
+    const metricPrefixMap = {
+        'TST_min': 'Battery 總睡眠時間',
+        'N3_pct': 'Battery N3',
+        'rMSSD': 'Battery rMSSD',
+        'HBI': 'Battery HBI',
+        'HR_min': 'Battery 最低脈搏'
+    };
+
+    const prefix = metricPrefixMap[worstMetric];
+    const randomNum = Math.floor(Math.random() * 3) + 1; // 隨機 1、2、3
+    const logicKey = `${prefix}最差${randomNum}`;
+
+    try {
+        const { data: phraseData } = await _supabase
+            .from('phrase_library')
+            .select('detailed_content')
+            .eq('logic_key', logicKey)
+            .limit(1)
+            .maybeSingle();
+
+        if (phraseData && phraseData.detailed_content) {
+            // 先說一句話，然後推派小卡
+            await appendAiMessage(`收到了！😊 幫你分析了一下最近的數據：`);
+            
+            // 呼叫簡易小卡 function
+            appendSimpleSummaryCard(worstMetric, phraseData.detailed_content);
+        }
+    } catch (e) {
+        console.error("Supabase 查詢錯誤：", e);
     }
 }
 </script>
