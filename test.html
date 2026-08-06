@@ -2578,13 +2578,13 @@ async function handleAbnormalityInput(msg) {
     
     // 1. 如果資料庫完全沒資料，或是只剩 1 筆(沒有前一天的歷史可以比較)
     if (allData.length <= 1) {
-        await appendAiMessage("收到了！😊 這是你的第一筆睡眠紀錄，目前還沒有過去的數據可以比較。你可以直接點選下方按鈕查看完整的睡眠報告喔！");
+        await appendAiMessage("收到了！😊 你可以直接點選下方按鈕查看完整的睡眠報告喔！");
         
         const fallbackHtml = `
             <div class="ai-message-wrapper">
                 <div class="ai-message" style="max-width: 85%; padding: 15px; border-radius: 18px; border-left: 5px solid #a79d8c; background-color: #ffffff;">
                     <div style="font-weight: bold; font-size: 1.1em; color: #666; margin-bottom: 12px;">
-                        🛌 首日睡眠紀錄
+                        🛌 睡眠紀錄
                     </div>
                     <div style="text-align: right;">
                         <button onclick="openSleepReport('${preDateStr}')" style="background-color: #a79d8c; color: white; border: none; padding: 6px 14px; border-radius: 15px; font-size: 0.85em; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
@@ -2655,7 +2655,7 @@ async function handleAbnormalityInput(msg) {
 
     // 4. 如果因為缺少數值算不出任何比較結果，直接顯示 fallback
     if (!worstMetric) {
-        await appendAiMessage("收到了！😊 今天的數據不足以跟過去比較，不過你可以直接點選下方按鈕查看完整的睡眠報告喔！");
+        await appendAiMessage("收到了！😊 你可以直接點選下方按鈕查看完整的睡眠報告喔！");
         
         const fallbackHtml = `
             <div class="ai-message-wrapper">
@@ -3288,14 +3288,14 @@ async function processSleepAnalysisByDate(targetPreDateStr) {
     // 4. 如果因為缺少數值算不出任何比較結果 (例如第一天使用，沒有歷史數據)
     if (!worstMetric) {
         // 給一句適合第一天使用的專屬對話
-        await appendAiMessage("收到了！😊 這是你的第一筆睡眠紀錄，目前還沒有過去的數據可以比較。你可以直接點選下方按鈕查看完整的睡眠報告喔！");
+        await appendAiMessage("收到了！😊 你可以直接點選下方按鈕查看完整的睡眠報告喔！");
         
         // 直接推派一張帶有 PDF 按鈕的簡化版卡片
         const fallbackHtml = `
             <div class="ai-message-wrapper">
                 <div class="ai-message" style="max-width: 85%; padding: 15px; border-radius: 18px; border-left: 5px solid #a79d8c; background-color: #ffffff;">
                     <div style="font-weight: bold; font-size: 1.1em; color: #666; margin-bottom: 12px;">
-                        🛌 首日睡眠紀錄
+                        🛌 睡眠紀錄
                     </div>
                     <div style="text-align: right;">
                         <button onclick="openSleepReport('${targetPreDateStr}')" style="background-color: #a79d8c; color: white; border: none; padding: 6px 14px; border-radius: 15px; font-size: 0.85em; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
