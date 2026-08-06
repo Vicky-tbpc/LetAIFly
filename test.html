@@ -3347,12 +3347,20 @@ async function processSleepAnalysisByDate(targetPreDateStr) {
             .maybeSingle();
 
         if (phraseData && phraseData.detailed_content) {
-            // 先說一句話，然後推派小卡
             await appendAiMessage(`收到了！😊 幫你分析了一下最近的數據：`);
-            appendSimpleSummaryCard(worstMetric, phraseData.detailed_content, targetPreDateStr);
+            
+            // --- 💡 修改這裡：將 hasYesterdayTRT 作為第四個參數傳入 ---
+            appendSimpleSummaryCard(worstMetric, phraseData.detailed_content, preDateStr, hasYesterdayTRT);
+            
+            // 小卡出現後，再給一個引導
+            await new Promise(r => setTimeout(r, 1000));
+            await appendAiMessage("目前還沒有恢復指數的分析，但上面的觀察也很有參考價值。現在想了解哪一部分呢？");
+        } else {
+            await appendAiMessage("收到了！😊 現在想從哪個部分開始了解呢？");
         }
     } catch (e) {
-        console.error("Supabase 查詢錯誤：", e);
+        console.error("讀取 phrase_library 失敗:", e);
+        await appendAiMessage("收到了！😊 現在想從哪個部分開始了解呢？");
     }
 }
 </script>
