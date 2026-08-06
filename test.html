@@ -3044,178 +3044,6 @@ function appendSimpleSummaryCard(metricName, detailedContent, recordDate, showSl
     scrollToBottom();
 }
 
-// --- 日曆功能 ---
-let currentCalDate = new Date();
-let availableSummaryDates = new Map();
-// 新增：用來存放拉回來的所有健康數據，方便計算歷史平均
-let userHealthDataList = []; 
-
-// 打開日曆並獲取有資料的日期
-async function openCalendarModal() {
-    if (!currentSerial) {
-        alert("請先登入才能查看日曆喔！");
-        return;
-    }
-    
-    // 每次打開時重置為當前月份
-    currentCalDate = new Date();
-    document.getElementById('calendar-overlay').classList.remove('hidden');
-    
-    // 渲染骨架，並顯示載入中... 
-    renderCalendar(); 
-    
-    await fetchAvailableSummaryDates();
-    renderCalendar(); // 資料回來後重新渲染上色
-}
-
-// 關閉日曆
-function closeCalendarModal(event) {
-    if (event && event.target !== document.getElementById('calendar-overlay') && event.target.tagName !== 'BUTTON') return;
-    document.getElementById('calendar-overlay').classList.add('hidden');
-}
-
-// 向地端請求使用者的所有資料，推算出哪些日期有「健康摘要」與對應的燈號
-async function fetchAvailableSummaryDates() {
-    try {
-        const params = new URLSearchParams({ serial: currentSerial }).toString();
-        const response = await fetch(`/api/health?${params}`);
-        if (response.ok) {
-            const rawData = await response.json();
-            // 確保留下來的資料是新到舊排序，這樣我們取 allData[0] 才會是選中的當天
-            userHealthDataList = rawData.sort((a, b) => new Date(b.record_date) - new Date(a.record_date));
-            
-            availableSummaryDates.clear(); // 清空舊資料
-            
-            userHealthDataList.forEach(d => {
-                if (d.raw_json) {
-                    const battery = d.raw_json.Personal_Battery_weighted_round;
-                    const trt = d.raw_json.TRT_min;
-                    
-                    // 判斷是否有值
-                    const hasBattery = battery !== null && battery !== undefined;
-                    const hasTRT = trt !== null && trt !== undefined;
-
-                    // 條件1 & 2：只要其中一個有值就要顯示；如果兩個都是 null/undefined 就不做任何事
-                    if (hasBattery || hasTRT) {
-                        // 健康摘要的顯示日期 = 紀錄日期 (record_date) + 1 天
-                        const dateObj = new Date(d.record_date.replace(/-/g, '/'));
-                        dateObj.setDate(dateObj.getDate() + 1);
-                        const displayDate = dateObj.toLocaleDateString('en-CA');
-                        
-                        const light = d.raw_json.light_status || '';
-                        
-                        // 儲存狀態物件，讓渲染與點擊事件都能判斷
-                        availableSummaryDates.set(displayDate, {
-                            hasBattery: hasBattery,
-                            hasTRTOnly: !hasBattery && hasTRT, // 代表只有 TRT 有值
-                            light: light,
-                            trtMin: trt
-                        });
-                    }
-                }
-            });
-        }
-    } catch (e) {
-        console.error("無法取得日曆資料，請確認地端伺服器是否開啟", e);
-    }
-}
-
-// 切換月份
-function changeMonth(offset) {
-    currentCalDate.setMonth(currentCalDate.getMonth() + offset);
-    renderCalendar();
-}
-
-// 渲染日曆畫面
-function renderCalendar() {
-    const year = currentCalDate.getFullYear();
-    const month = currentCalDate.getMonth();
-    
-    document.getElementById('calendar-month-year').innerText = `${year}年 ${month + 1}月`;
-    
-    const firstDay = new Date(year, month, 1).getDay(); // 0(日) ~ 6(六)
-    const daysInMonth = new Date(year, month + 1, 0).getDate();
-    
-    const grid = document.getElementById('calendar-grid');
-    let html = '';
-    
-    const dayHeaders = ['日', '一', '二', '三', '四', '五', '六'];
-    dayHeaders.forEach(day => {
-        html += `<div class="calendar-day-header">${day}</div>`;
-    });
-    
-    // 填補當月第一天前面的空格
-    for (let i = 0; i < firstDay; i++) {
-        html += `<div class="calendar-day empty"></div>`;
-    }
-    
-    const todayStr = getLocalDateString();
-
-    // 產生每一天
-    for (let day = 1; day <= daysInMonth; day++) {
-        const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-        
-        // 取得該日期的資料狀態
-        const dateData = availableSummaryDates.get(dateStr);
-        const hasData = !!dateData;
-        const isToday = dateStr === todayStr;
-        
-        let classNames = 'calendar-day';
-        let extraStyle = '';
-        
-        if (hasData) {
-            classNames += ' has-data';
-            
-            // 條件2：只有 TRT_min 有數值且 Battery 沒有數值時
-            if (dateData.hasTRTOnly) {
-                // 改為套用 status-default 樣式類別
-                classNames += ' status-default';
-            } 
-            // 條件1：Battery 有數值，依據 light_status 呈現
-            else {
-                if (dateData.light === '綠燈') classNames += ' status-green';
-                else if (dateData.light === '黃燈') classNames += ' status-yellow';
-                else if (dateData.light === '黃紅燈') classNames += ' status-orange';
-                else if (dateData.light === '紅燈') classNames += ' status-red';
-                else classNames += ' status-default'; 
-            }
-        } else {
-            classNames += ' disabled'; // 無資料反灰
-        }
-        
-        if (isToday) classNames += ' today';
-        
-        if (hasData) {
-            html += `<div class="${classNames}" ${extraStyle} onclick="selectCalendarDate('${dateStr}')">${day}</div>`;
-        } else {
-            html += `<div class="${classNames}">${day}</div>`;
-        }
-    }
-    
-    grid.innerHTML = html;
-}
-
-// 點選日期後執行查詢
-async function selectCalendarDate(dateStr) {
-    closeCalendarModal();
-    const dateData = availableSummaryDates.get(dateStr);
-    
-    // 將顯示日期轉回前一天的紀錄日期
-    const dateObj = new Date(dateStr.replace(/-/g, '/'));
-    dateObj.setDate(dateObj.getDate() - 1);
-    const preDateStr = dateObj.toLocaleDateString('en-CA');
-    
-    // 條件3：如果是上述條件2 (只有 TRT_min)，點選後執行「找出惡化最多指標」並推派小卡的邏輯
-    if (dateData && dateData.hasTRTOnly) {
-        appendUserMessage(`查詢 ${dateStr} 睡眠分析`);
-        await processSleepAnalysisByDate(preDateStr);
-    } else {
-        // 原本 Battery 有數值時走這邊
-        appendUserMessage(`查詢 ${dateStr} 健康摘要`);
-        await processSummarySearch(preDateStr, dateStr);
-    }
-}
-
 // ==========================================
 // 新增一支獨立 function，直接套用你寫好的邏輯
 // ==========================================
@@ -3236,6 +3064,18 @@ async function processSleepAnalysisByDate(targetPreDateStr) {
     const pastData = allData.slice(1); // 剩下的歷史數據
     const fields = ['TST_min', 'N3_pct', 'rMSSD', 'HBI', 'HR_min'];
     let baseline = {};
+
+    // 👇 新增：檢查這一筆資料的 TRT_min 是否有值
+    const currentRaw = latestData.raw_json || {};
+    const hasTRT = currentRaw.TRT_min !== undefined && currentRaw.TRT_min !== null;
+
+    // 👇 根據是否有 TRT_min 決定是否顯示睡眠報告按鈕
+    const reportButtonHtml = hasTRT ? `
+        <div style="text-align: right;">
+            <button onclick="openSleepReport('${targetPreDateStr}')" style="background-color: #a79d8c; color: white; border: none; padding: 6px 14px; border-radius: 15px; font-size: 0.85em; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+                📄 開啟睡眠報告
+            </button>
+        </div>` : '';
 
     // 2. 決定比較基準：有3天歷史就算平均，沒有3天就只抓前一天
     if (pastData.length >= 3) {
@@ -3265,7 +3105,6 @@ async function processSleepAnalysisByDate(targetPreDateStr) {
     // 3. 找出差異(惡化)最多的指標
     let maxDeviation = -Infinity;
     let worstMetric = null;
-    const currentRaw = latestData.raw_json || {};
 
     fields.forEach(f => {
         const currentVal = currentRaw[f];
@@ -3294,18 +3133,14 @@ async function processSleepAnalysisByDate(targetPreDateStr) {
         // 給一句適合第一天使用的專屬對話
         await appendAiMessage("收到了！😊 你可以直接點選下方按鈕查看完整的睡眠報告喔！");
         
-        // 直接推派一張帶有 PDF 按鈕的簡化版卡片
+        // 直接推派一張帶有 PDF 按鈕的簡化版卡片 (加入 reportButtonHtml 判斷)
         const fallbackHtml = `
             <div class="ai-message-wrapper">
                 <div class="ai-message" style="max-width: 85%; padding: 15px; border-radius: 18px; border-left: 5px solid #a79d8c; background-color: #ffffff;">
                     <div style="font-weight: bold; font-size: 1.1em; color: #666; margin-bottom: 12px;">
                         🛌 睡眠紀錄
                     </div>
-                    <div style="text-align: right;">
-                        <button onclick="openSleepReport('${targetPreDateStr}')" style="background-color: #a79d8c; color: white; border: none; padding: 6px 14px; border-radius: 15px; font-size: 0.85em; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
-                            📄 開啟睡眠報告
-                        </button>
-                    </div>
+                    ${reportButtonHtml}
                 </div>
             </div>`;
         
@@ -3339,7 +3174,8 @@ async function processSleepAnalysisByDate(targetPreDateStr) {
         if (phraseData && phraseData.detailed_content) {
             // 先說一句話，然後推派小卡
             await appendAiMessage(`收到了！😊 幫你分析了一下最近的數據：`);
-            appendSimpleSummaryCard(worstMetric, phraseData.detailed_content, targetPreDateStr);
+            // 👇 修改這裡：把 hasTRT 當作第四個參數傳進去
+            appendSimpleSummaryCard(worstMetric, phraseData.detailed_content, targetPreDateStr, hasTRT);
         }
     } catch (e) {
         console.error("Supabase 查詢錯誤：", e);
