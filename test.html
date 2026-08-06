@@ -3153,7 +3153,7 @@ async function selectCalendarDate(dateStr) {
     if (dateData && dateData.hasTRTOnly) {
         appendUserMessage(`查詢 ${dateStr} 睡眠分析`);
         // 呼叫你的 Card，並把 TRT_min 的資料帶進去顯示
-        appendSimpleSummaryCard('TST_min', `此日期的總睡眠時間為：${dateData.trtMin} 分鐘`);
+        appendSimpleSummaryCard(worstMetric, phraseData.detailed_content);
     } else {
         // 原本 Battery 有數值時走這邊
         appendUserMessage(`查詢 ${dateStr} 健康摘要`);
