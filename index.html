@@ -2209,8 +2209,8 @@ function appendSummaryCard(dateTitle, data) {
 
     // --- 新增：心血管風險 區塊 ---
     let riskSectionHtml = '';
-    if (raw && raw.risk_test != null) {
-        const riskVal = raw.risk_test;
+    if (raw && raw.CVD != null) {
+        const riskVal = raw.CVD;
         let riskText = '';
         let bar1 = '#e1e1e1', bar2 = '#e1e1e1', bar3 = '#e1e1e1', bar4 = '#e1e1e1';
 
@@ -2231,7 +2231,7 @@ function appendSummaryCard(dateTitle, data) {
         // 計算7日數量
         let c0 = 0, c1 = 0, c2 = 0, c3 = 0;
         history7.forEach(h => {
-            const v = (h.raw_json && h.raw_json.risk_test !== undefined) ? h.raw_json.risk_test : null;
+            const v = (h.raw_json && h.raw_json.CVD !== undefined) ? h.raw_json.CVD : null;
             if (v === 0) c0++;
             else if (v === 1) c1++;
             else if (v === 2) c2++;
@@ -2257,7 +2257,7 @@ function appendSummaryCard(dateTitle, data) {
         };
 
         const histRev = [...history7].reverse();
-        const riskChartData = histRev.map(h => (h.raw_json && h.raw_json.risk_test !== undefined) ? h.raw_json.risk_test : null);
+        const riskChartData = histRev.map(h => (h.raw_json && h.raw_json.CVD !== undefined) ? h.raw_json.CVD : null);
 
         const getRiskY = (v) => {
             if (v === 3) return 20;
