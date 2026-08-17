@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Soosyn 健康夥伴 n093</title>
+    <title>Soosyn 健康夥伴 n096</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -2207,7 +2207,7 @@ function appendSummaryCard(dateTitle, data) {
         `;
     }
 
-    // --- 新增：心血管風險 區塊 ---
+    // --- 新增：睡眠心血管負荷 區塊 ---
     let riskSectionHtml = '';
     if (raw && raw.CVD != null) {
         const riskVal = raw.CVD;
@@ -2279,7 +2279,7 @@ function appendSummaryCard(dateTitle, data) {
         const endX = drawWidth - 20;
         const xStep = riskChartData.length > 1 ? (endX - startX) / (riskChartData.length - 1) : 0;
 
-        // 繪製心血管風險 SVG 趨勢圖 (使用橫線顯示點位)
+        // 繪製睡眠心血管負荷 SVG 趨勢圖 (使用橫線顯示點位)
         let riskSvg = `<svg viewBox="0 0 ${drawWidth} 110" style="width: 100%; height: 110px; overflow: visible; margin-top: 10px; background-color: white; border-radius: 8px;">`;
         
         // 縱軸文字
@@ -2311,6 +2311,77 @@ function appendSummaryCard(dateTitle, data) {
         riskSvg += `</svg>`;
 
         const toggleId = `risk-chart-container-${Date.now()}-${Math.floor(Math.random()*1000)}`;
+
+        // --- 新增：本次綜合分析 區塊準備 ---
+        let compAnalysisHtml = '';
+        if (raw && raw.CVD_ppi != null && raw.CVD_hbi != null && raw.CVD_cbp != null) {
+            
+            // 產生前三項橫線 UI 的函數
+            const getCompBarHtml = (title, val) => {
+                let colors = ['#e1e1e1', '#e1e1e1', '#e1e1e1', '#e1e1e1'];
+                if (val >= 75 && val <= 100) colors[0] = '#596b75';
+                else if (val >= 50 && val <= 74) colors[1] = '#8699a3';
+                else if (val >= 25 && val <= 49) colors[2] = '#a79d8c';
+                else if (val >= 0 && val <= 24) colors[3] = '#ff8c73';
+
+                return `
+                    <div style="margin-top: 12px;">
+                        <div style="font-size: 14px; font-weight: bold; color: #5a5a5a;">${title}</div>
+                        <div style="display: flex; gap: 4px; height: 6px; width: 100%; margin-top: 6px;">
+                            <div style="flex: 1; background-color: ${colors[0]}; border-radius: 3px;"></div>
+                            <div style="flex: 1; background-color: ${colors[1]}; border-radius: 3px;"></div>
+                            <div style="flex: 1; background-color: ${colors[2]}; border-radius: 3px;"></div>
+                            <div style="flex: 1; background-color: ${colors[3]}; border-radius: 3px;"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-top: 4px; text-align: center;">
+                            <div style="flex: 1;">良好</div>
+                            <div style="flex: 1;">一般</div>
+                            <div style="flex: 1;">不佳</div>
+                            <div style="flex: 1;">差</div>
+                        </div>
+                    </div>
+                `;
+            };
+
+            const item1 = getCompBarHtml('脈搏間隔穩定度', raw.CVD_ppi);
+            const item2 = getCompBarHtml('低氧區穩定度', raw.CVD_hbi);
+            const item3 = getCompBarHtml('心血管壓力穩定度', raw.CVD_cbp);
+
+            // 項目4：建議文字 (比對 Supabase phrase_library)
+            let suggestText = "建議文字載入中..."; 
+            const cvdContent = raw.CVD_content;
+            
+            if (cvdContent != null) {
+                const targetTitle = `cvd_${cvdContent}`;
+                
+                // 這裡假設你有個叫做 phrase_library 的變數（陣列）存放了 supabase 的資料
+                // 若你的取法不同，可以替換下方的 if 判斷
+                if (typeof phrase_library !== 'undefined' && Array.isArray(phrase_library)) {
+                    const matched = phrase_library.find(p => p.title === targetTitle);
+                    if (matched && matched.action_suggest) {
+                        suggestText = matched.action_suggest;
+                    }
+                } else {
+                    suggestText = `(這裡會顯示 ${targetTitle} 的建議，請串接 phrase_library table 資料)`;
+                }
+            }
+
+            const item4 = `
+                <div style="margin-top: 15px; padding: 12px; background-color: white; border: 1px solid #e1e1e1; border-radius: 8px; font-size: 13px; color: #5a5a5a; line-height: 1.5;">
+                    <span style="font-weight: bold; color: #333;">💡 建議：</span><br>${suggestText}
+                </div>
+            `;
+
+            compAnalysisHtml = `
+                <div style="margin-top: 20px; border-top: 1px dashed rgba(0,0,0,0.1); padding-top: 15px;">
+                    <div style="font-size: 15px; font-weight: bold; color: #333;">本次綜合分析</div>
+                    ${item1}
+                    ${item2}
+                    ${item3}
+                    ${item4}
+                </div>
+            `;
+        }
 
         riskSectionHtml = `
             <div style="background-color: #f8fcfc; border-radius: 12px; padding: 15px; margin-bottom: 15px;">
@@ -2357,6 +2428,8 @@ function appendSummaryCard(dateTitle, data) {
                     </div>
                   </div>
                 </div>
+                <!-- 注入本次綜合分析區塊 -->
+                ${compAnalysisHtml}            
             </div>
         `;
     }
@@ -2430,7 +2503,7 @@ function appendSummaryCard(dateTitle, data) {
 
             <!-- 替換為動態條件判斷的靜息心率 RHR 區塊 -->
             ${rhrSectionHtml}
-            <!-- 將心血管風險區塊直接安插在 RHR 下方 -->
+            <!-- 將睡眠心血管負荷區塊直接安插在 RHR 下方 -->
             ${riskSectionHtml}
             <!-- 新版的動態分析與報告 -->
             ${capsulesHtml}
@@ -2734,7 +2807,10 @@ async function handleAbnormalityInput(msg) {
         // 2. 將 Markdown 連結 [名稱](網址) 轉換為 HTML 可點擊的超連結 <a>
         formattedText = formattedText.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" style="color: #0056b3; text-decoration: underline; font-weight: bold;">$1</a>');
         
-        // 3. 輸出到畫面上
+        // 3. 將 Markdown 粗體 **文字** 轉換為 HTML 粗體 <strong> (新增這一行)
+        formattedText = formattedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        
+        // 4. 輸出到畫面上
         typingElem.querySelector('.ai-bubble').innerHTML = formattedText;
     }
     scrollToBottom(); 
@@ -2873,8 +2949,13 @@ async function callGeminiAPI(prompt) {
         const typingElem = document.getElementById(typingId);
         if (typingElem) typingElem.remove();
 
-        // 👇 新增這段：如果後端判定要畫圖，就呼叫按鈕選單
-        if (data.action === 'show_trend_options') {
+        // 👇 判斷後端回傳的 action 來決定前端要做什麼動作
+        if (data.action === 'open_pdf') {
+            // 改成：呼叫產生按鈕的函式，不直接開啟
+            setTimeout(() => {
+                appendPdfButton(data.date); 
+            }, 500);
+        } else if (data.action === 'show_trend_options') {
             // 使用者沒說清楚，跳出選單
             setTimeout(() => {
                 appendTrendOptions();
@@ -2892,6 +2973,34 @@ async function callGeminiAPI(prompt) {
         const typingElem = document.getElementById(typingId);
         if (typingElem) typingElem.remove();
         return "抱歉，我現在連不上線，請稍後再試。 😅";
+    }
+}
+
+// --- 新增：在對話框中產生開啟 PDF 的按鈕 ---
+function appendPdfButton(date) {
+    const historyElem = document.getElementById('chat-history');
+    if (!historyElem) return;
+
+    // 建立按鈕的 HTML 結構 (你可以依照你原本的 UI 風格修改 class 或 style)
+    const btnHtml = `
+        <div class="msg-row ai-row">
+            <div class="ai-bubble" style="background-color: transparent; border: none; padding: 0; box-shadow: none;">
+                <button onclick="openSleepReport('${date}')" 
+                        style="background-color: #8699a3; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-size: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); transition: 0.3s;"
+                        onmouseover="this.style.backgroundColor='#6c838f'" 
+                        onmouseout="this.style.backgroundColor='#8699a3'">
+                    📄 開啟 ${date} 的睡眠報告
+                </button>
+            </div>
+        </div>
+    `;
+
+    // 將按鈕加入對話紀錄中
+    historyElem.insertAdjacentHTML('beforeend', btnHtml);
+    
+    // 捲動到最底部
+    if (typeof scrollToBottom === 'function') {
+        scrollToBottom();
     }
 }
 
@@ -3026,7 +3135,7 @@ function appendSimpleSummaryCard(metricName, detailedContent, recordDate, showSl
         <div class="ai-message-wrapper">
             <div class="ai-message" style="max-width: 85%; padding: 15px; border-radius: 18px; border-left: 5px solid ${style.color}; background-color: #ffffff;">
                 <div style="font-weight: bold; font-size: 0.9em; color: #666; margin-bottom: 8px; display: flex; justify-content: space-between;">
-                    <span style="font-weight: bold; font-size: 1.1em;">近期睡眠分析</span>
+                    <span style="font-weight: bold; font-size: 1.1em;">睡眠分析</span>
                     <span style="font-size: 0.9em; background: #eee; padding: 4px 10px; border-radius: 10px; white-space: nowrap;">${style.label}</span>
                 </div>
                 <div style="display: flex; align-items: flex-start; margin-bottom: 12px;">
