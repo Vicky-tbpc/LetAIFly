@@ -2314,7 +2314,7 @@ function appendSummaryCard(dateTitle, data) {
 
         // --- 新增：本次綜合分析 區塊準備 ---
         let compAnalysisHtml = '';
-        if (raw && raw.CVD_ppi != null && raw.CVD_hbi != null && raw.CVD_cbp != null) {
+        if (raw && raw.PPI_count != null && raw.HBI_count != null && raw.CBP_count != null) {
             
             // 產生前三項橫線 UI 的函數
             const getCompBarHtml = (title, val) => {
@@ -2343,9 +2343,9 @@ function appendSummaryCard(dateTitle, data) {
                 `;
             };
 
-            const item1 = getCompBarHtml('脈搏間隔穩定度', raw.CVD_ppi);
-            const item2 = getCompBarHtml('低氧區穩定度', raw.CVD_hbi);
-            const item3 = getCompBarHtml('心血管壓力穩定度', raw.CVD_cbp);
+            const item1 = getCompBarHtml('脈搏間隔穩定度', raw.PPI_count);
+            const item2 = getCompBarHtml('低氧區穩定度', raw.HBI_count);
+            const item3 = getCompBarHtml('心血管壓力穩定度', raw.CBP_count);
 
             // 項目4：建議文字 (比對 Supabase phrase_library)
             let suggestText = "建議文字載入中..."; 
@@ -2378,7 +2378,7 @@ function appendSummaryCard(dateTitle, data) {
                     ${item1}
                     ${item2}
                     ${item3}
-                    ${item4}
+                    
                 </div>
             `;
         }
