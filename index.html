@@ -2500,13 +2500,12 @@ function appendSummaryCard(dateTitle, data) {
             ${renderBlock("心率變異 (HRV) 穩定度", "hrv_stability.svg", hrvVal, getDiffText(hrvVal, avgHrv), getColor(hrvVal), "#faf9f6", hrvExtraHtml)}
             ${renderBlock("脈搏穩定度", "pulse_stability.svg", pulseVal, getDiffText(pulseVal, avgPulse), getColor(pulseVal), "#faf9f6", pulseExtraHtml)}
             ${renderBlock("血氧穩定度", "o2_stability.svg", o2Val, getDiffText(o2Val, avgO2), getColor(o2Val), "#faf9f6", o2ExtraHtml)}
-
+            <!-- 新版的動態分析與報告 -->
+            ${capsulesHtml}
             <!-- 替換為動態條件判斷的靜息心率 RHR 區塊 -->
             ${rhrSectionHtml}
             <!-- 將睡眠心血管負荷區塊直接安插在 RHR 下方 -->
             ${riskSectionHtml}
-            <!-- 新版的動態分析與報告 -->
-            ${capsulesHtml}
             <div style="margin: 20px 0 5px 0;">
                 <button class="primary-btn" style="background-color: var(--tbp-blue); color: white; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; border-radius: 20px;" onclick="event.stopPropagation(); openSleepReport('${data.date}');">
                     📄 開啟睡眠報告
