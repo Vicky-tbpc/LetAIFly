@@ -1452,20 +1452,54 @@ if (needsAction) {
             healths[i] || {};
         const histRaw =
             item.raw_json || {};
-        const histBattery =
-            Number(
-                histRaw.Personal_Battery_weighted_round
-            );
-        if (
-            !Number.isFinite(histBattery)
-        ) {
-            continue;
-        }
-        historyRecords.push({
-            index: i,
-            raw: histRaw,
-            battery: histBattery
-        });
+        const historyRecords = [];
+
+for (
+    let i = 1;
+    i < healths.length;
+    i++
+) {
+    const item =
+        healths[i] || {};
+
+    const histRaw =
+        item.raw_json || {};
+
+    // 方案 A：先檢查 Recovery Index 原始值是否存在
+    const batteryValue =
+        histRaw.Personal_Battery_weighted_round;
+
+    if (
+        batteryValue === null ||
+        batteryValue === undefined ||
+        batteryValue === ''
+    ) {
+        continue;
+    }
+
+    // 確認可以轉成數字
+    const histBattery =
+        Number(batteryValue);
+
+    if (
+        !Number.isFinite(histBattery)
+    ) {
+        continue;
+    }
+
+    // 加入有效歷史資料
+    historyRecords.push({
+        index: i,
+        raw: histRaw,
+        battery: histBattery
+    });
+}
+
+// 最新 → 最舊
+historyRecords.sort(
+    (a, b) =>
+        a.index - b.index
+);
     }
 
     // 最新 → 最舊
