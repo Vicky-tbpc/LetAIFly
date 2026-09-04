@@ -1265,7 +1265,7 @@ async function showSummaryFlow(isFirstTime = false) {
 
 // --- 趨勢圖專用函數庫 ---
 
-    function appendTrendOptions() {
+async function appendTrendOptions() {
     // 加上 field 屬性，方便我們比對資料欄位
     const options = [
         { name: "📊 完整圖表", type: "all" },
@@ -1439,7 +1439,7 @@ if (healthData.length === 0) {
     if (container.children.length === 0) {
         container.innerHTML = '<div style="padding: 20px; text-align: center; color: #888;">此期間暫無圖表數據 😅</div>';
     }
-
+}
 // --- 處理時間字串與分鐘數的轉換 ---
 function parseTimeToMinutes(dateStr, type) {
     if (!dateStr) return 0;
