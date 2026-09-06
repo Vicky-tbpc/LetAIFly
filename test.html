@@ -2035,52 +2035,50 @@ finalCapsules.push({
 });
 
 // [新增] 將計算出來的資料儲存到地端 Excel
-(async () => {
-    // 找出中位數進步量 (與你程式邏輯的 actionText 中的數字保持一致)
     let finalImprovement = null;
-    if (bestSolution) {
-        if (['N3_pct', 'rMSSD', 'HBI'].includes(bestSolution.metricKey)) {
-            finalImprovement = Number(bestSolution.medianImprovement.toFixed(1));
-        } else {
-            // 分鐘或 BPM 取整數
-            finalImprovement = Math.max(1, Math.round(bestSolution.medianImprovement));
-        }
+if (bestSolution) {
+    if (['N3_pct', 'rMSSD', 'HBI'].includes(bestSolution.metricKey)) {
+        finalImprovement = Number(bestSolution.medianImprovement.toFixed(1));
+    } else {
+        // 分鐘或 BPM 取整數
+        finalImprovement = Math.max(1, Math.round(bestSolution.medianImprovement));
     }
+}
 
-    const payload = {
-        serial: currentSerial,
-        date: targetDate,
-        rec_type: recType,
-        weakest_stability: weakest.name,
-        primary_metric: bestSolution ? bestSolution.metricKey : '無',
-        history_cases: bestSolution ? bestSolution.successCount : 0,
-        effectiveness: bestSolution ? `${Math.round(bestSolution.successRate)}%` : '無',
-        median_improvement: finalImprovement !== null ? finalImprovement : 0,
-        recommendation_basis: actionText
-    };
+const payload = {
+    serial: currentSerial,
+    date: targetDate,
+    rec_type: recType,
+    weakest_stability: weakest.name,
+    primary_metric: bestSolution ? bestSolution.metricKey : '無',
+    history_cases: bestSolution ? bestSolution.successCount : 0,
+    effectiveness: bestSolution ? `${Math.round(bestSolution.successRate)}%` : '無',
+    median_improvement: finalImprovement !== null ? finalImprovement : 0,
+    recommendation_basis: actionText
+};
 
-    // 👉 加入這兩行來檢查前端有沒有走到這裡
-    console.log("準備發送儲存 Excel 的請求，內容為：", payload);
-    console.log("目前發送的 API 網址為：/api/health");
+// 👉 用這兩行來檢查前端有沒有走到這裡
+console.log("準備發送儲存 Excel 的請求，內容為：", payload);
+console.log("目前發送的 API 網址為：/api/health");
 
-    try {
-        const saveRes = await fetch('/api/health', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        });
-        if (!saveRes.ok) {
-            console.error('推薦資料儲存失敗', await saveRes.text());
-        } else {
-            console.log('推薦資料已成功儲存到地端 Excel');
-        }
-    } catch (err) {
-        console.error('呼叫儲存 API 發生異常:', err);
+try {
+    // 加上 await，強迫程式在這裡等一下，確定送出後再往下走
+    const saveRes = await fetch('/api/health', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    });
+    
+    if (!saveRes.ok) {
+        console.error('推薦資料儲存失敗', await saveRes.text());
+    } else {
+        console.log('推薦資料已成功儲存到地端 Excel');
     }
-})();
-
+} catch (err) {
+    console.error('呼叫儲存 API 發生異常:', err);
+}
 
     // --- 4. 組合最終的 Capsules (原有的日常/運動建議) ---
     finalCapsules.push({ 
