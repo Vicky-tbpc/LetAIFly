@@ -2059,6 +2059,10 @@ finalCapsules.push({
         recommendation_basis: actionText
     };
 
+    // 👉 加入這兩行來檢查前端有沒有走到這裡
+    console.log("準備發送儲存 Excel 的請求，內容為：", payload);
+    console.log("目前發送的 API 網址為：/api/health");
+
     try {
         const saveRes = await fetch('/api/health', {
             method: 'POST',
