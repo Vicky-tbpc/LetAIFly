@@ -2047,7 +2047,8 @@ if (bestSolution) {
 
 const payload = {
     serial: currentSerial,
-    date: targetDate,
+    // 修正欄位名稱為 record_end，並轉換格式為 YYYY/MM/DD
+    record_end: targetDate.replace(/-/g, '/'), 
     rec_type: recType,
     weakest_stability: weakest.name,
     primary_metric: bestSolution ? bestSolution.metricKey : '無',
