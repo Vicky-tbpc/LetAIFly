@@ -647,8 +647,28 @@ async function login() {
         currentSerial = serial;
         document.getElementById('login-overlay').classList.add('hidden');
         
-        if (!data.nickname) document.getElementById('nickname-overlay').classList.remove('hidden');
-        else initApp(data.nickname, data.ai_name);
+        if (!data.nickname) {
+            document.getElementById('nickname-overlay').classList.remove('hidden');
+        } else {
+            initApp(data.nickname, data.ai_name);
+        }
+
+        // ==========================================
+        // 👇 新增區塊：在這裡觸發抓取資料與寫入 Excel 👇
+        // ==========================================
+        try {
+            // 假設你的系統有 getLocalDateString() 或類似的函式來決定當下日期
+            // 如果你的 fetchSummaryData 不需要傳日期，就把參數拿掉
+            const todayStr = getLocalDateString(); 
+            const summaryData = await fetchSummaryData(todayStr);
+            
+            if (summaryData && summaryData.calcData) {
+                await saveBatteryRecommendation(currentSerial, summaryData.date, summaryData.calcData);
+            }
+        } catch (err) {
+            console.error("同步推薦資料到地端失敗:", err);
+        }
+        // ==========================================
 
         if (liff.isInClient() && !data.line_user_id) {
             setTimeout(() => {
@@ -2034,53 +2054,6 @@ finalCapsules.push({
     `
 });
 
-// [新增] 將計算出來的資料儲存到地端 Excel
-    let finalImprovement = null;
-if (bestSolution) {
-    if (['N3_pct', 'rMSSD', 'HBI'].includes(bestSolution.metricKey)) {
-        finalImprovement = Number(bestSolution.medianImprovement.toFixed(1));
-    } else {
-        // 分鐘或 BPM 取整數
-        finalImprovement = Math.max(1, Math.round(bestSolution.medianImprovement));
-    }
-}
-
-const payload = {
-    serial: currentSerial,
-    // 修正欄位名稱為 record_end，並轉換格式為 YYYY/MM/DD
-    record_end: targetDate.replace(/-/g, '/'), 
-    rec_type: recType,
-    weakest_stability: weakest.name,
-    primary_metric: bestSolution ? bestSolution.metricKey : '無',
-    history_cases: bestSolution ? bestSolution.successCount : 0,
-    effectiveness: bestSolution ? `${Math.round(bestSolution.successRate)}%` : '無',
-    median_improvement: finalImprovement !== null ? finalImprovement : 0,
-    recommendation_basis: actionText
-};
-
-// 👉 用這兩行來檢查前端有沒有走到這裡
-console.log("準備發送儲存 Excel 的請求，內容為：", payload);
-console.log("目前發送的 API 網址為：/api/health");
-
-try {
-    // 加上 await，強迫程式在這裡等一下，確定送出後再往下走
-    const saveRes = await fetch('/api/health', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-    });
-    
-    if (!saveRes.ok) {
-        console.error('推薦資料儲存失敗', await saveRes.text());
-    } else {
-        console.log('推薦資料已成功儲存到地端 Excel');
-    }
-} catch (err) {
-    console.error('呼叫儲存 API 發生異常:', err);
-}
-
     // --- 4. 組合最終的 Capsules (原有的日常/運動建議) ---
     finalCapsules.push({ 
         type: 'best',  
@@ -2097,9 +2070,28 @@ try {
         ` 
     });
 
-    const statusLight = raw?.light_status || '--';
+    // --- 新增這段來整理要寫入 Excel 的變數 ---
+    let improvementValue = 0;
+    if (bestSolution) {
+        if (['N3_pct', 'rMSSD', 'HBI'].includes(bestSolution.metricKey)) {
+            improvementValue = Number(bestSolution.medianImprovement.toFixed(1));
+        } else {
+            improvementValue = Math.max(1, Math.round(bestSolution.medianImprovement));
+        }
+    }
 
-    // --- 5. 最終回傳物件 ---
+    const calcData = {
+        rec_type: recType,
+        weakest_stability: weakest.name,
+        primary_metric: bestSolution ? bestSolution.metricKey : '無',
+        history_cases: bestSolution ? bestSolution.successCount : 0,
+        effectiveness: bestSolution ? Math.round(bestSolution.successRate) : 0,
+        median_improvement: improvementValue,
+        recommendation_basis: actionText
+    };
+    // ------------------------------------------
+
+    const statusLight = raw?.light_status || '--';
     return { 
         date: current.record_date.replace(/-/g, '/'), 
         battery: currentBattery, 
@@ -2107,10 +2099,47 @@ try {
         capsules: finalCapsules, 
         raw_json: raw, 
         flowSuggestion: flowSuggestionText,
-        history7: history7 
+        history7: history7,
+        calcData: calcData // 將參數一起回傳
     };
 }
+// 計算 record_date 加一天的 YYYY-MM-DD 格式
+function getNextDayString(dateString) {
+    const d = new Date(dateString);
+    d.setDate(d.getDate() + 1);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
 
+// 傳送資料給後端的函式
+async function saveBatteryRecommendation(serial, recordDate, calcData) {
+    const nextDate = getNextDayString(recordDate);
+    
+    try {
+        await fetch(`/api/health?action=save_rec`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                serial_number: serial,
+                date: nextDate,
+                rec_type: calcData.rec_type,
+                weakest_stability: calcData.weakest_stability,
+                primary_metric: calcData.primary_metric,
+                history_cases: calcData.history_cases,
+                effectiveness: calcData.effectiveness,
+                median_improvement: calcData.median_improvement,
+                recommendation_basis: calcData.recommendation_basis
+            })
+        });
+        console.log("Battery_Recommendations 同步檢查完畢");
+    } catch (err) {
+        console.error("同步 Excel 失敗:", err);
+    }
+}
 // --- 確保 showSummaryFlow 也能正確運作 ---
 async function showSummaryFlow(isFirstTime = false) { 
     const todayStr = getLocalDateString();
