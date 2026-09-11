@@ -645,6 +645,15 @@ async function login() {
         }
 
         currentSerial = serial;
+
+        // --- 新增：登入成功後擷取資料並儲存至地端 Excel ---
+        const targetDate = new Date().toISOString().split('T')[0];
+        const summary = await fetchSummaryData(targetDate);
+        if (summary) {
+            await saveRecommendationToExcel(currentSerial, summary);
+        }
+
+        // --- UI 切換與畫面初始化 ---
         document.getElementById('login-overlay').classList.add('hidden');
         
         if (!data.nickname) {
@@ -652,23 +661,6 @@ async function login() {
         } else {
             initApp(data.nickname, data.ai_name);
         }
-
-        // ==========================================
-        // 👇 新增區塊：在這裡觸發抓取資料與寫入 Excel 👇
-        // ==========================================
-        try {
-            // 假設你的系統有 getLocalDateString() 或類似的函式來決定當下日期
-            // 如果你的 fetchSummaryData 不需要傳日期，就把參數拿掉
-            const todayStr = getLocalDateString(); 
-            const summaryData = await fetchSummaryData(todayStr);
-            
-            if (summaryData && summaryData.calcData) {
-                await saveBatteryRecommendation(currentSerial, summaryData.date, summaryData.calcData);
-            }
-        } catch (err) {
-            console.error("同步推薦資料到地端失敗:", err);
-        }
-        // ==========================================
 
         if (liff.isInClient() && !data.line_user_id) {
             setTimeout(() => {
@@ -2070,28 +2062,9 @@ finalCapsules.push({
         ` 
     });
 
-    // --- 新增這段來整理要寫入 Excel 的變數 ---
-    let improvementValue = 0;
-    if (bestSolution) {
-        if (['N3_pct', 'rMSSD', 'HBI'].includes(bestSolution.metricKey)) {
-            improvementValue = Number(bestSolution.medianImprovement.toFixed(1));
-        } else {
-            improvementValue = Math.max(1, Math.round(bestSolution.medianImprovement));
-        }
-    }
-
-    const calcData = {
-        rec_type: recType,
-        weakest_stability: weakest.name,
-        primary_metric: bestSolution ? bestSolution.metricKey : '無',
-        history_cases: bestSolution ? bestSolution.successCount : 0,
-        effectiveness: bestSolution ? Math.round(bestSolution.successRate) : 0,
-        median_improvement: improvementValue,
-        recommendation_basis: actionText
-    };
-    // ------------------------------------------
-
     const statusLight = raw?.light_status || '--';
+
+    // --- 5. 最終回傳物件 ---
     return { 
         date: current.record_date.replace(/-/g, '/'), 
         battery: currentBattery, 
@@ -2100,46 +2073,57 @@ finalCapsules.push({
         raw_json: raw, 
         flowSuggestion: flowSuggestionText,
         history7: history7,
-        calcData: calcData // 將參數一起回傳
+        // 新增這段：提取要寫入 Excel 的原始變數
+        excelData: {
+            recType: recType || '',
+            weakestStability: weakest ? weakest.name : '',
+            primaryMetric: bestSolution ? bestSolution.metricKey : '',
+            historyCases: bestSolution ? bestSolution.successCount : 0,
+            effectiveness: bestSolution ? Math.round(bestSolution.successRate) : 0,
+            medianImprovement: bestSolution ? bestSolution.medianImprovement : 0,
+            recommendationBasis: actionText || ''
+        }
     };
 }
-// 計算 record_date 加一天的 YYYY-MM-DD 格式
-function getNextDayString(dateString) {
-    const d = new Date(dateString);
-    d.setDate(d.getDate() + 1);
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, '0');
-    const dd = String(d.getDate()).padStart(2, '0');
-    return `${yyyy}-${mm}-${dd}`;
-}
 
-// 傳送資料給後端的函式
-async function saveBatteryRecommendation(serial, recordDate, calcData) {
-    const nextDate = getNextDayString(recordDate);
+// 新增這個儲存到地端 Excel 的專用函式
+async function saveRecommendationToExcel(serial, summary) {
+    if (!summary || !summary.excelData) return;
+
+    // 嚴格透過 record_end 來計算日期 +1，並轉為 YYYY-MM-DD
+    const rawEnd = summary.raw_json.record_end || summary.date;
+    const baseDateStr = rawEnd.split(' ')[0]; // 取出純日期
+    const baseDateObj = new Date(baseDateStr.replace(/-/g, '/'));
     
+    baseDateObj.setDate(baseDateObj.getDate() + 1);
+    
+    const nextDayStr = `${baseDateObj.getFullYear()}-${String(baseDateObj.getMonth() + 1).padStart(2, '0')}-${String(baseDateObj.getDate()).padStart(2, '0')}`;
+
+    const payload = {
+        serial: serial,
+        date: nextDayStr,
+        rec_type: summary.excelData.recType,
+        weakest_stability: summary.excelData.weakestStability,
+        primary_metric: summary.excelData.primaryMetric,
+        history_cases: summary.excelData.historyCases,
+        effectiveness: summary.excelData.effectiveness,
+        median_improvement: summary.excelData.medianImprovement,
+        recommendation_basis: summary.excelData.recommendationBasis
+    };
+
     try {
-        await fetch(`/api/health?action=save_rec`, {
+        const response = await fetch('/api/health?action=save_recommendation', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                serial_number: serial,
-                date: nextDate,
-                rec_type: calcData.rec_type,
-                weakest_stability: calcData.weakest_stability,
-                primary_metric: calcData.primary_metric,
-                history_cases: calcData.history_cases,
-                effectiveness: calcData.effectiveness,
-                median_improvement: calcData.median_improvement,
-                recommendation_basis: calcData.recommendation_basis
-            })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
         });
-        console.log("Battery_Recommendations 同步檢查完畢");
+        const result = await response.json();
+        console.log("地端 Excel 寫入狀態:", result);
     } catch (err) {
-        console.error("同步 Excel 失敗:", err);
+        console.error("寫入地端 Excel 發生錯誤:", err);
     }
 }
+
 // --- 確保 showSummaryFlow 也能正確運作 ---
 async function showSummaryFlow(isFirstTime = false) { 
     const todayStr = getLocalDateString();
