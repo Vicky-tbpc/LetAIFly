@@ -1,4 +1,4 @@
-// api/health.js_新增儲存日間建議
+// api/health.js_儲存
 export default async function handler(req, res) {
   // 把 console.log 移到這裡，這樣每次觸發 API 都會印出 Log
   console.log('目前讀取的網址清單:', process.env.LOCAL_TUNNEL_URLS || process.env.LOCAL_TUNNEL_URL);
@@ -66,29 +66,30 @@ export default async function handler(req, res) {
     }
   }
 
-// [新增] 處理 POST 儲存推薦資料的邏輯
-  if (req.method === 'POST') {
+  // 4. [新增] 處理儲存 Battery_Recommendations 的邏輯
+  if (req.method === 'POST' && req.query.action === 'save_rec') {
+    const pathAndQuery = '/api/save-recommendation';
     try {
-      const response = await fetchFromTunnels('/api/save-recommendation', {
+      const response = await fetchFromTunnels(pathAndQuery, {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
           'X-API-KEY': API_KEY,
+          'Content-Type': 'application/json',
           'ngrok-skip-browser-warning': 'true' 
         },
         body: JSON.stringify(req.body)
       });
       
-      const responseData = await response.json();
-      return res.status(200).json(responseData);
+      const data = await response.json();
+      return res.status(200).json(data);
     } catch (error) {
       console.error('Save recommendation error:', error);
       const errMsg = error.message || '伺服器連線錯誤';
-      return res.status(error.status || 500).json({ error: `無法儲存，地端伺服器說：${errMsg}` });
+      return res.status(error.status || 500).json({ error: '儲存失敗', detail: errMsg });
     }
-  }
+  }  
 
-  // 3. 一般 API 邏輯
+// 3. 一般 API 邏輯
   const { start, end, serial } = req.query; 
 
   try {
