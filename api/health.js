@@ -66,30 +66,28 @@ export default async function handler(req, res) {
     }
   }
 
-  // 4. [新增] 處理儲存 Battery_Recommendations 的邏輯
-  if (req.method === 'POST' && req.query.action === 'save_rec') {
-    const pathAndQuery = '/api/save-recommendation';
+  // [新增] 接收前端寫入 Excel 的 POST 請求並轉發
+  if (req.method === 'POST' && req.query.action === 'save_recommendation') {
     try {
-      const response = await fetchFromTunnels(pathAndQuery, {
+      const response = await fetchFromTunnels('/api/save-recommendation', {
         method: 'POST',
         headers: { 
-          'X-API-KEY': API_KEY,
           'Content-Type': 'application/json',
+          'X-API-KEY': API_KEY,
           'ngrok-skip-browser-warning': 'true' 
         },
         body: JSON.stringify(req.body)
       });
-      
       const data = await response.json();
-      return res.status(200).json(data);
+      return res.status(response.status).json(data);
     } catch (error) {
-      console.error('Save recommendation error:', error);
+      console.error('儲存推薦資料失敗:', error);
       const errMsg = error.message || '伺服器連線錯誤';
-      return res.status(error.status || 500).json({ error: '儲存失敗', detail: errMsg });
+      return res.status(error.status || 500).json({ error: errMsg });
     }
-  }  
+  }
 
-// 3. 一般 API 邏輯
+  // 3. 一般 API 邏輯
   const { start, end, serial } = req.query; 
 
   try {
