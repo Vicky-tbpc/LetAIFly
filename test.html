@@ -645,22 +645,10 @@ async function login() {
         }
 
         currentSerial = serial;
-
-        // --- 新增：登入成功後擷取資料並儲存至地端 Excel ---
-        const targetDate = new Date().toISOString().split('T')[0];
-        const summary = await fetchSummaryData(targetDate);
-        if (summary) {
-            await saveRecommendationToExcel(currentSerial, summary);
-        }
-
-        // --- UI 切換與畫面初始化 ---
         document.getElementById('login-overlay').classList.add('hidden');
         
-        if (!data.nickname) {
-            document.getElementById('nickname-overlay').classList.remove('hidden');
-        } else {
-            initApp(data.nickname, data.ai_name);
-        }
+        if (!data.nickname) document.getElementById('nickname-overlay').classList.remove('hidden');
+        else initApp(data.nickname, data.ai_name);
 
         if (liff.isInClient() && !data.line_user_id) {
             setTimeout(() => {
@@ -2064,64 +2052,36 @@ finalCapsules.push({
 
     const statusLight = raw?.light_status || '--';
 
-    // --- 5. 最終回傳物件 ---
-    return { 
+    // 準備要傳回地端的 5 項資料
+const priorityItem = needsAction ? weakest.name : '目前無特別需改善項目';
+const payload = {
+    serial: currentSerial,
+    record_date: current.record_date,
+    priorityItem: priorityItem,
+    actionText: actionText,
+    exerciseLevel: finalExerciseLevel,
+    dailyAction: dailyAction,
+    exerciseRec: exerciseRec
+};
+
+// 背景發送 API 將資料存入地端 Excel，這裡不加上 await 避免阻塞前端渲染速度
+fetch('/api/health?action=save_profile', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+}).catch(err => console.error("傳送儲存 Daily_Recommendations 發生錯誤:", err));
+
+return { 
         date: current.record_date.replace(/-/g, '/'), 
         battery: currentBattery, 
         light: statusLight, 
         capsules: finalCapsules, 
         raw_json: raw, 
         flowSuggestion: flowSuggestionText,
-        history7: history7,
-        // 新增這段：提取要寫入 Excel 的原始變數
-        excelData: {
-            recType: recType || '',
-            weakestStability: weakest ? weakest.name : '',
-            primaryMetric: bestSolution ? bestSolution.metricKey : '',
-            historyCases: bestSolution ? bestSolution.successCount : 0,
-            effectiveness: bestSolution ? Math.round(bestSolution.successRate) : 0,
-            medianImprovement: bestSolution ? bestSolution.medianImprovement : 0,
-            recommendationBasis: actionText || ''
-        }
+        history7: history7 
     };
-}
-
-// 新增這個儲存到地端 Excel 的專用函式
-async function saveRecommendationToExcel(serial, summary) {
-    if (!summary || !summary.excelData) return;
-
-    // 嚴格透過 record_end 來計算日期 +1，並轉為 YYYY-MM-DD
-    const rawEnd = summary.raw_json.record_end || summary.date;
-    const baseDateStr = rawEnd.split(' ')[0]; // 取出純日期
-    const baseDateObj = new Date(baseDateStr.replace(/-/g, '/'));
-    
-    baseDateObj.setDate(baseDateObj.getDate() + 1);
-    
-    const nextDayStr = `${baseDateObj.getFullYear()}-${String(baseDateObj.getMonth() + 1).padStart(2, '0')}-${String(baseDateObj.getDate()).padStart(2, '0')}`;
-
-    const payload = {
-        serial: serial,
-        date: nextDayStr,
-        rec_type: summary.excelData.recType,
-        weakest_stability: summary.excelData.weakestStability,
-        primary_metric: summary.excelData.primaryMetric,
-        history_cases: summary.excelData.historyCases,
-        effectiveness: summary.excelData.effectiveness,
-        median_improvement: summary.excelData.medianImprovement,
-        recommendation_basis: summary.excelData.recommendationBasis
-    };
-
-    try {
-        const response = await fetch('/api/health?action=save_recommendation', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const result = await response.json();
-        console.log("地端 Excel 寫入狀態:", result);
-    } catch (err) {
-        console.error("寫入地端 Excel 發生錯誤:", err);
-    }
 }
 
 // --- 確保 showSummaryFlow 也能正確運作 ---
