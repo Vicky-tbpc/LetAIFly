@@ -65,29 +65,27 @@ export default async function handler(req, res) {
       return res.status(error.status || 500).send(`無法取得 PDF，地端伺服器說：${errMsg}`);
     }
   }
-
-  // [新增] 接收前端寫入 Excel 的 POST 請求並轉發
-  if (req.method === 'POST' && req.query.action === 'save_recommendation') {
+  // 3. [新增] 接收前端 5 項建議資料並轉發至地端
+  if (req.method === 'POST' && req.query.action === 'save_profile') {
+    const pathAndQuery = `/api/save-recommendation`;
     try {
-      const response = await fetchFromTunnels('/api/save-recommendation', {
+      const response = await fetchFromTunnels(pathAndQuery, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
           'X-API-KEY': API_KEY,
           'ngrok-skip-browser-warning': 'true' 
         },
-        body: JSON.stringify(req.body)
+        body: JSON.stringify(req.body) // 將前端傳來的 JSON 原封不動傳給地端
       });
       const data = await response.json();
-      return res.status(response.status).json(data);
+      return res.status(200).json(data);
     } catch (error) {
-      console.error('儲存推薦資料失敗:', error);
-      const errMsg = error.message || '伺服器連線錯誤';
-      return res.status(error.status || 500).json({ error: errMsg });
+      console.error('Save profile error:', error);
+      return res.status(error.status || 500).json({ error: '無法將設定儲存到地端', detail: error.message });
     }
   }
-
-  // 3. 一般 API 邏輯
+  // 4. 一般 API 邏輯
   const { start, end, serial } = req.query; 
 
   try {
