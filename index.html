@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Soosyn 健康夥伴 n097-6</title>
+    <title>Soosyn 健康夥伴 n097-7</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -2052,8 +2052,28 @@ finalCapsules.push({
 
     const statusLight = raw?.light_status || '--';
 
-    // --- 5. 最終回傳物件 ---
-    return { 
+    // 準備要傳回地端的 5 項資料
+const priorityItem = needsAction ? weakest.name : '目前無特別需改善項目';
+const payload = {
+    serial: currentSerial,
+    record_date: current.record_date,
+    priorityItem: priorityItem,
+    actionText: actionText,
+    exerciseLevel: finalExerciseLevel,
+    dailyAction: dailyAction,
+    exerciseRec: exerciseRec
+};
+
+// 背景發送 API 將資料存入地端 Excel，這裡不加上 await 避免阻塞前端渲染速度
+fetch('/api/health?action=save_profile', {
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+}).catch(err => console.error("傳送儲存 Daily_Recommendations 發生錯誤:", err));
+
+return { 
         date: current.record_date.replace(/-/g, '/'), 
         battery: currentBattery, 
         light: statusLight, 
@@ -2082,22 +2102,53 @@ async function showSummaryFlow(isFirstTime = false) {
 
 // --- 趨勢圖專用函數庫 ---
 
-function appendTrendOptions() {
+async function appendTrendOptions() {
+    // 加上 field 屬性，方便我們比對資料欄位
     const options = [
         { name: "📊 完整圖表", type: "all" },
-        { name: "📈 恢復指數", type: "battery" },
-        { name: "🛌 總睡眠時間", type: "tst" },
-        { name: "💤 深睡期 (N3)", type: "n3" },
-        { name: "🌙 入睡規律性", type: "start" },
-        { name: "☀️ 醒來規律性", type: "end" },
-        { name: "⏱️ 睡眠清醒時間", type: "wake" },        
-        { name: "🌿 rMSSD", type: "rmssd" },
-        { name: "💓 睡眠最低脈搏", type: "hrmin" },
-        { name: "🫁 HBI 低氧負擔指數", type: "hbi" },
-        { name: "❤️ 靜息心率 (RHR)", type: "rhr" }
+        { name: "📈 恢復指數", type: "battery", field: "Personal_Battery_weighted_round" },
+        { name: "🛌 總睡眠時間", type: "tst", field: "TST_min" },
+        { name: "💤 深睡期 (N3)", type: "n3", field: "N3_pct" },
+        { name: "🌙 入睡規律性", type: "start", field: "record_start" },
+        { name: "☀️ 醒來規律性", type: "end", field: "record_end" },
+        { name: "⏱️ 睡眠清醒時間", type: "wake", field: "wake_minutes" },        
+        { name: "🌿 rMSSD", type: "rmssd", field: "rMSSD" },
+        { name: "💓 睡眠最低脈搏", type: "hrmin", field: "HR_min" },
+        { name: "🫁 HBI 低氧負擔指數", type: "hbi", field: "HBI" },
+        { name: "❤️ 靜息心率 (RHR)", type: "rhr", field: "RHR_raw" }
     ];
+
     let html = '<div class="msg-row ai-row" id="trend-options-container"><div style="display:flex; flex-wrap:wrap; gap:8px; width:100%; max-width:400px;">';
-    options.forEach(opt => html += `<button class="action-btn" onclick="startTrendFlow('${opt.type}', '${opt.name}')">${opt.name}</button>`);
+
+    try {
+        // 先抓取一次使用者的全量數據
+        const queryParams = new URLSearchParams({ serial: currentSerial }).toString();
+        const response = await fetch(`/api/health?${queryParams}`);
+        
+        if (response.ok) {
+            const healthData = await response.json();
+            
+            // 過濾選項：只保留「完整圖表」或「該欄位至少有一筆有效數值」的按鈕
+            const validOptions = options.filter(opt => {
+                if (opt.type === 'all') return true;
+                
+                // 檢查是否至少有一天有資料
+                return healthData.some(d => {
+                    const val = d.raw_json?.[opt.field];
+                    return val !== null && val !== undefined && val !== '';
+                });
+            });
+
+            validOptions.forEach(opt => html += `<button class="action-btn" onclick="startTrendFlow('${opt.type}', '${opt.name}')">${opt.name}</button>`);
+        } else {
+            // 如果連線失敗就 fallback 全顯示
+            options.forEach(opt => html += `<button class="action-btn" onclick="startTrendFlow('${opt.type}', '${opt.name}')">${opt.name}</button>`);
+        }
+    } catch (err) {
+        console.error("讀取按鈕過濾資料錯誤:", err);
+        options.forEach(opt => html += `<button class="action-btn" onclick="startTrendFlow('${opt.type}', '${opt.name}')">${opt.name}</button>`);
+    }
+
     document.getElementById('chat-history').innerHTML += html + '</div></div>';
     scrollToBottom();
 }
@@ -2113,76 +2164,157 @@ async function renderTrendCard(type, days) {
     const cardId = `trend-${Date.now()}`;
     const html = `
         <div class="msg-row ai-row">
-            <div class="trend-card" id="${cardId}">
+            <!-- 加上 data-days 與 data-offset 讓 DOM 記住狀態 -->
+            <div class="trend-card" id="${cardId}" data-days="${days}" data-offset="0">
                 <div class="trend-header">
                     <span class="chart-title">📈 趨勢分析</span>
                     <div class="trend-nav">
-                        <button class="nav-btn ${days===7?'active':''}" onclick="updateTrend('${cardId}', '${type}', 7)">7日</button>
-                        <button class="nav-btn ${days===14?'active':''}" onclick="updateTrend('${cardId}', '${type}', 14)">14日</button>
-                        <button class="nav-btn ${days===30?'active':''}" onclick="updateTrend('${cardId}', '${type}', 30)">30日</button>
+                        <button class="nav-btn ${days===7?'active':''}" onclick="setTrendDays('${cardId}', '${type}', 7)">7日</button>
+                        <button class="nav-btn ${days===14?'active':''}" onclick="setTrendDays('${cardId}', '${type}', 14)">14日</button>
+                        <button class="nav-btn ${days===30?'active':''}" onclick="setTrendDays('${cardId}', '${type}', 30)">30日</button>
                     </div>
+                </div>
+                <!-- 新增：日期分頁區塊 -->
+                <div class="trend-date-nav" style="display:flex; justify-content:center; align-items:center; gap:10px; margin: 10px 0; color: #596b75; font-size: 14px;">
+                    <button class="nav-arrow" onclick="changeTrendPage('${cardId}', '${type}', 'prev')" style="cursor:pointer; background:none; border:none; font-size:16px; padding:0 10px;">◀</button>
+                    <span id="${cardId}-date-range" style="font-weight:bold; min-width:180px; text-align:center;">讀取中...</span>
+                    <button class="nav-arrow" onclick="changeTrendPage('${cardId}', '${type}', 'next')" style="cursor:pointer; background:none; border:none; font-size:16px; padding:0 10px;">▶</button>
                 </div>
                 <div class="trend-content"></div>
             </div>
         </div>`;
     document.getElementById('chat-history').innerHTML += html;
     scrollToBottom();
-    updateTrend(cardId, type, days);
+    updateTrend(cardId, type, days, 0); // 傳入初始 offset 為 0
 }
 
+// 點選 7日、14日、30日 時，保留目前的結束日期 (不重置 offset)
+function setTrendDays(cardId, type, days) {
+    const card = document.getElementById(cardId);
+    card.dataset.days = days;    
+    // 讀取目前的 offset，如果沒有就預設為 0
+    const currentOffset = parseInt(card.dataset.offset || 0, 10);    
+    updateTrend(cardId, type, days, currentOffset);
+}
 
-async function updateTrend(cardId, type, days) {
+// 點選 ◀ 或 ▶ 進行分頁切換
+function changeTrendPage(cardId, type, direction) {
+    const card = document.getElementById(cardId);
+    const days = parseInt(card.dataset.days, 10);
+    let offset = parseInt(card.dataset.offset, 10);
+
+    if (direction === 'prev') {
+        offset += days; // 往回看更舊的資料
+    } else if (direction === 'next') {
+        offset -= days; // 往未來看較新的資料
+        if (offset < 0) offset = 0;
+    }
+
+    card.dataset.offset = offset;
+    updateTrend(cardId, type, days, offset);
+}
+async function updateTrend(cardId, type, days, offset = 0) {
     const card = document.getElementById(cardId);
     card.querySelectorAll('.nav-btn').forEach(b => {
         b.classList.remove('active');
         if(b.innerText.includes(days)) b.classList.add('active');
     });
 
-    // 1. 將原本的 Supabase 呼叫註解掉或替換掉
-let healthData = [];
-try {
-    // 1. 準備參數：只抓取目前這個使用者的資料
-    const queryParams = new URLSearchParams({
-        serial: currentSerial
-    }).toString();
-
-    // 2. 呼叫地端中轉 API (加上 serial 參數)
-    const response = await fetch(`/api/health?${queryParams}`);
+    let healthData = [];
+    let filteredJsonData = [];
     
-    if (!response.ok) throw new Error("地端連線失敗");
-    
-    // 現在拿到的資料已經是被地端過濾過的「該使用者全量資料」
-    const filteredJsonData = await response.json();
-    const totalDaysToFetch = days + 6; 
+    try {
+        const queryParams = new URLSearchParams({ serial: currentSerial }).toString();
+        const response = await fetch(`/api/health?${queryParams}`);
+        
+        if (!response.ok) throw new Error("地端連線失敗");
+        
+        filteredJsonData = await response.json();
+        const totalDaysToFetch = days + 6; 
 
-    // 3. 前端只負責「排序」與「取出最近幾天 (days)」
-    healthData = filteredJsonData
-        .sort((a, b) => new Date(b.record_date) - new Date(a.record_date)) // 日期降冪排序
-        .slice(0, totalDaysToFetch) // 取得最近的筆數 (例如 7+6=13 筆，確保第一天也有足夠的前期資料算平均)
-        .map(item => ({
-            record_date: item.record_date,
-            raw_json: item.raw_json
-        }));
+        // 1. 切片取得資料
+        healthData = filteredJsonData
+            .sort((a, b) => new Date(b.record_date) - new Date(a.record_date))
+            .slice(offset, offset + totalDaysToFetch) 
+            .map(item => ({
+                record_date: item.record_date,
+                raw_json: item.raw_json
+            }));
 
-} catch (err) {
-    console.error("讀取地端資料錯誤:", err);
-    card.querySelector('.trend-content').innerHTML = "地端連線失敗 😅";
-    return;
-}
+        // 【滿足第 2 點】：如果抓出來的資料筆數不夠 (代表到底了)，往前把缺的日期補齊為空資料
+        while (healthData.length < totalDaysToFetch) {
+            if (healthData.length === 0) break; // 完全沒資料防呆
+            const oldestItem = healthData[healthData.length - 1];
+            let d = new Date(oldestItem.record_date + 'T00:00:00');
+            d.setDate(d.getDate() - 1); // 往前推一天
+            healthData.push({
+                record_date: d.toLocaleDateString('en-CA'),
+                raw_json: {} // 塞空物件，這樣畫圖抓欄位就會是 undefined -> 轉成 null
+            });
+        }
 
-// 4. 檢查是否有資料 (保留你原本的判斷邏輯)
-if (healthData.length === 0) {
-    card.querySelector('.trend-content').innerHTML = "暫無數據 😅";
-    return;
-}
+    } catch (err) {
+        console.error("讀取地端資料錯誤:", err);
+        card.querySelector('.trend-content').innerHTML = "地端連線失敗 😅";
+        document.getElementById(`${cardId}-date-range`).innerText = "無數據";
+        return;
+    }
 
-
-// 接下來這段之後的程式碼（例如處理畫圖的部分）就可以繼續接下去跑，不用動
+    if (healthData.length === 0) {
+        card.querySelector('.trend-content').innerHTML = "暫無數據 😅";
+        document.getElementById(`${cardId}-date-range`).innerText = "無數據";
+        return;
+    }
 
     const sortedData = [...healthData].reverse();
+
+    // ================= 處理上方導覽列的日期顯示 =================
+    const displayData = sortedData.slice(-days); // 取出實際繪圖的那幾天
+    if (displayData.length > 0) {
+        let startD = new Date(displayData[0].record_date + 'T00:00:00');
+        let endD = new Date(displayData[displayData.length - 1].record_date + 'T00:00:00');
+
+        // 【滿足第 3 點 & 第 4 點的建議】：如果「單獨看」需要 +1 的圖表，上方文字才 +1
+        // 如果是 type === 'all'，這裡就不會進去，維持原始測量日期！
+        if (type === 'battery' || type === 'rhr' || type === 'end') {
+            startD.setDate(startD.getDate() + 1);
+            endD.setDate(endD.getDate() + 1);
+        }
+
+        // 格式化為 YYYY/MM/DD
+        const formatD = (d) => {
+            const yyyy = d.getFullYear();
+            const mm = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${yyyy}/${mm}/${dd}`;
+        };
+
+        document.getElementById(`${cardId}-date-range`).innerText = `${formatD(startD)}-${formatD(endD)}`;
+    }
+
+    // 控制 ◀ 與 ▶ 按鈕在到達極限時反灰不可點
+    const prevBtn = card.querySelector('.trend-date-nav button:first-child');
+    const nextBtn = card.querySelector('.trend-date-nav button:last-child');
     
+    // 如果再往前看，超過總資料量代表沒舊資料了
+    if (offset + days >= filteredJsonData.length) {
+        prevBtn.style.opacity = "0.3";
+        prevBtn.style.pointerEvents = "none";
+    } else {
+        prevBtn.style.opacity = "1";
+        prevBtn.style.pointerEvents = "auto";
+    }
+    
+    if (offset === 0) {
+        nextBtn.style.opacity = "0.3";
+        nextBtn.style.pointerEvents = "none";
+    } else {
+        nextBtn.style.opacity = "1";
+        nextBtn.style.pointerEvents = "auto";
+    }
+    // =================================================================
+
     // --- 【關鍵：準備體感數據要對齊的日期範圍】 ---
-    // 我們需要抓取「生理日期」以及「生理日期+1天」的所有問卷，確保對應得到
     const originalDates = sortedData.map(d => d.record_date);
     const shiftedDates = originalDates.map(dStr => {
         let d = new Date(dStr + 'T00:00:00');
@@ -2218,11 +2350,14 @@ if (healthData.length === 0) {
         const chartBox = document.createElement('div');
         chartBox.className = 'chart-item';
         container.appendChild(chartBox);
-        // 將原始數據與 map 傳入，讓繪圖函式自己決定日期顯示
         drawSingleChart(chartBox, t, sortedData, subjectiveMap, days);
     }
+    
+    // 👇 迴圈結束後加這段：如果所有圖表都被除掉了，給個溫馨提示
+    if (container.children.length === 0) {
+        container.innerHTML = '<div style="padding: 20px; text-align: center; color: #888;">此期間暫無圖表數據 😅</div>';
+    }
 }
-
 // --- 處理時間字串與分鐘數的轉換 ---
 function parseTimeToMinutes(dateStr, type) {
     if (!dateStr) return 0;
@@ -2298,22 +2433,36 @@ function drawSingleChart(container, type, rawData, subjectiveMap = {}, days) {
         }
     });
 
-    // --- 【修正點 1：全部加上 all 前綴，避免與下方的切片變數衝突】 ---
+    // --- 【修正點 1：全部加上 all 前綴，並過濾掉沒有數據的空值保留為 null】 ---
     const allDailyValues = rawData.map(d => {
         const rawVal = d.raw_json[config.field];
+        // 遇到空值不再轉成 0，直接回傳 null
+        if (rawVal === null || rawVal === undefined || rawVal === '') {
+            return null;
+        }
         if (type === 'start' || type === 'end') {
             return parseTimeToMinutes(rawVal, type);
         }
-        return Number(rawVal) || 0;
+        return Number(rawVal);
     });
+
     const allMovingAvgs = [];
     const allLowerBounds = []; 
     const allUpperBounds = [];
 
-    // 計算平均值邏輯（基於包含緩衝的完整陣列）
+    // 計算平均值邏輯（只計算有數值的天數）
     allDailyValues.forEach((val, i) => {
         const start = Math.max(0, i - 6);
-        const chunk = allDailyValues.slice(start, i + 1);
+        // 過濾掉 null 的數據再來算平均
+        const chunk = allDailyValues.slice(start, i + 1).filter(v => v !== null);
+        
+        if (chunk.length === 0) {
+            allMovingAvgs.push(null);
+            allLowerBounds.push(null);
+            allUpperBounds.push(null);
+            return;
+        }
+
         const avg = chunk.reduce((a, b) => a + b, 0) / chunk.length;
         if (type === 'rmssd') {
             allMovingAvgs.push(avg); allLowerBounds.push(avg * 0.9); allUpperBounds.push(avg * 1.1);
@@ -2327,7 +2476,10 @@ function drawSingleChart(container, type, rawData, subjectiveMap = {}, days) {
     });
 
     const allPointColors = allDailyValues.map((v, i) => {
+        if (v === null) return config.color; // null 點不會畫，隨便給過
         const ma = allMovingAvgs[i];
+        if (ma === null) return config.color;
+
         if (type === 'battery' && v < ma) return '#ff8c73';
         if (type === 'rhr' && v > allUpperBounds[i]) return '#ff8c73';
         if (type === 'n3' && (v < ma || v < 10)) return '#ff8c73';
@@ -2343,6 +2495,14 @@ function drawSingleChart(container, type, rawData, subjectiveMap = {}, days) {
     // --- 【核心步驟：算完滾動平均後，切出最後要顯示的 days 天數】 ---
     const labels = allLabels.slice(-days);
     const dailyValues = allDailyValues.slice(-days);
+    
+    // 👇 新增檢查：這段期間的數值如果全部都是 null，直接把容器刪掉並結束繪圖
+    const hasAnyValidData = dailyValues.some(v => v !== null);
+    if (!hasAnyValidData) {
+        container.remove();
+        return; 
+    }
+
     const movingAvgs = allMovingAvgs.slice(-days);
     const lowerBounds = allLowerBounds.slice(-days);
     const upperBounds = allUpperBounds.slice(-days);
@@ -2429,7 +2589,8 @@ function drawSingleChart(container, type, rawData, subjectiveMap = {}, days) {
         datasets.push({
             label: '7日平均範圍',
             type: 'bar',
-            data: dailyValues.map((_, i) => [lowerBounds[i], upperBounds[i]]),
+            // 若下限是 null 就給 null，不要給 [null, null]
+            data: dailyValues.map((_, i) => lowerBounds[i] === null ? null : [lowerBounds[i], upperBounds[i]]),
             backgroundColor: '#c1cdd3',
             barPercentage: 0.5
         });
@@ -2437,7 +2598,7 @@ function drawSingleChart(container, type, rawData, subjectiveMap = {}, days) {
         datasets.push({
             label: '7日平均',
             type: 'bar',
-            data: movingAvgs,
+            data: movingAvgs, // 裡面已經是數值或 null 了，安全
             backgroundColor: '#c1cdd3',
             barPercentage: 0.5
         });
@@ -3296,6 +3457,8 @@ function appendSummaryCard(dateTitle, data) {
                 </div>
             </div>
             ${alertHtml}
+            <!-- 新版的動態分析與報告 -->
+            ${capsulesHtml}
             <!-- 四項穩定度區塊 (新增睡眠區塊展開功能) -->
             ${renderBlock("睡眠穩定度", "sleep_stability.svg", sleepVal, getDiffText(sleepVal, avgSleep), getColor(sleepVal), "#faf9f6", sleepExtraHtml)}
             ${renderBlock("心率變異 (HRV) 穩定度", "hrv_stability.svg", hrvVal, getDiffText(hrvVal, avgHrv), getColor(hrvVal), "#faf9f6", hrvExtraHtml)}
@@ -3306,8 +3469,7 @@ function appendSummaryCard(dateTitle, data) {
             ${rhrSectionHtml}
             <!-- 將睡眠心血管負荷區塊直接安插在 RHR 下方 -->
             ${riskSectionHtml}
-            <!-- 新版的動態分析與報告 -->
-            ${capsulesHtml}
+
             <div style="margin: 20px 0 5px 0;">
                 <button class="primary-btn" style="background-color: var(--tbp-blue); color: white; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; border-radius: 20px;" onclick="event.stopPropagation(); openSleepReport('${data.date}');">
                     📄 開啟睡眠報告
