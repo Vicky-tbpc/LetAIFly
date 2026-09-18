@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Soosyn 健康夥伴 n096-6</title>
+    <title>Soosyn 健康夥伴 n096-7</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -2348,173 +2348,165 @@ function appendSummaryCard(dateTitle, data) {
         `;
     }
 
-    // 小工具：判斷數值是否有效（排除 null, undefined, 'NA', 'N/A'）
-const isValidData = (val) => val != null && val !== 'NA' && val !== 'N/A';
+    // --- 新增：睡眠心血管負荷 區塊 ---
+    let riskSectionHtml = '';
+    if (raw && raw.CVD != null && raw.CVD !== 'NA' && raw.CVD !== 'N/A') {
+        const riskVal = raw.CVD;
+        let riskText = '';
+        let bar1 = '#e1e1e1', bar2 = '#e1e1e1', bar3 = '#e1e1e1', bar4 = '#e1e1e1';
 
-// --- 新增：睡眠心血管負荷 區塊 ---
-let riskSectionHtml = '';
-// 加上 isValidData 判斷
-if (raw && isValidData(raw.CVD)) {
-    const riskVal = raw.CVD;
-    let riskText = '';
-    let bar1 = '#e1e1e1', bar2 = '#e1e1e1', bar3 = '#e1e1e1', bar4 = '#e1e1e1';
-
-    if (riskVal === 0) {
-        riskText = '良好';
-        bar1 = '#596b75';
-    } else if (riskVal === 1) {
-        riskText = '一般';
-        bar2 = '#8699a3';
-    } else if (riskVal === 2) {
-        riskText = '偏高';
-        bar3 = '#a79d8c';
-    } else if (riskVal === 3) {
-        riskText = '高';
-        bar4 = '#ff8c73';
-    }
-
-    // 計算7日數量 (加上 isValidData 過濾歷史資料)
-    let c0 = 0, c1 = 0, c2 = 0, c3 = 0;
-    history7.forEach(h => {
-        const v = (h.raw_json && isValidData(h.raw_json.CVD)) ? h.raw_json.CVD : null;
-        if (v === 0) c0++;
-        else if (v === 1) c1++;
-        else if (v === 2) c2++;
-        else if (v === 3) c3++;
-    });
-
-    // 轉換日期 + 1 天工具
-    const formatRiskAxisDatePlus1 = (d) => {
-        if (!d) return '';
-        const parts = d.split(' ')[0].split(/[-/]/); 
-        if (parts.length >= 3) {
-            let year = parseInt(parts[0], 10);
-            let month = parseInt(parts[1], 10) - 1; 
-            let day = parseInt(parts[2].substring(0,2), 10);
-            let dateObj = new Date(year, month, day);
-            if(isNaN(dateObj)) return d;
-            dateObj.setDate(dateObj.getDate() + 1);
-            let mm = String(dateObj.getMonth() + 1).padStart(2, '0');
-            let dd = String(dateObj.getDate()).padStart(2, '0');
-            return `${mm}/${dd}`;
+        if (riskVal === 0) {
+            riskText = '良好';
+            bar1 = '#596b75';
+        } else if (riskVal === 1) {
+            riskText = '一般';
+            bar2 = '#8699a3';
+        } else if (riskVal === 2) {
+            riskText = '偏高';
+            bar3 = '#a79d8c';
+        } else if (riskVal === 3) {
+            riskText = '高';
+            bar4 = '#ff8c73';
         }
-        return d;
-    };
 
-    const histRev = [...history7].reverse();
-    // 陣列對應也加上 isValidData 判斷
-    const riskChartData = histRev.map(h => (h.raw_json && isValidData(h.raw_json.CVD)) ? h.raw_json.CVD : null);
+        // 計算7日數量
+        let c0 = 0, c1 = 0, c2 = 0, c3 = 0;
+        history7.forEach(h => {
+            const v = (h.raw_json && h.raw_json.CVD !== undefined) ? h.raw_json.CVD : null;
+            if (v === 0) c0++;
+            else if (v === 1) c1++;
+            else if (v === 2) c2++;
+            else if (v === 3) c3++;
+        });
 
-    const getRiskY = (v) => {
-        if (v === 3) return 20;
-        if (v === 2) return 40;
-        if (v === 1) return 60;
-        if (v === 0) return 80;
-        return 80;
-    };
-    const getRiskLineColor = (v) => {
-        if (v === 3) return '#ff8c73';
-        if (v === 2) return '#a79d8c';
-        if (v === 1) return '#8699a3';
-        if (v === 0) return '#596b75';
-        return '#000';
-    };
-
-    const drawWidth = 300;
-    const startX = 60;
-    const endX = drawWidth - 20;
-    const xStep = riskChartData.length > 1 ? (endX - startX) / (riskChartData.length - 1) : 0;
-
-    // 繪製睡眠心血管負荷 SVG 趨勢圖 (使用橫線顯示點位)
-    let riskSvg = `<svg viewBox="0 0 ${drawWidth} 110" style="width: 100%; height: 110px; overflow: visible; margin-top: 10px; background-color: white; border-radius: 8px;">`;
-    
-    // 縱軸文字
-    riskSvg += `<text x="30" y="20" font-size="12" fill="#888" text-anchor="end" dominant-baseline="middle">高</text>`;
-    riskSvg += `<text x="30" y="40" font-size="12" fill="#888" text-anchor="end" dominant-baseline="middle">偏高</text>`;
-    riskSvg += `<text x="30" y="60" font-size="12" fill="#888" text-anchor="end" dominant-baseline="middle">一般</text>`;
-    riskSvg += `<text x="30" y="80" font-size="12" fill="#888" text-anchor="end" dominant-baseline="middle">良好</text>`;
-
-    // 數值資料繪圖
-    riskChartData.forEach((val, i) => {
-        if (val !== null) {
-            let cx = startX + i * xStep;
-            if (riskChartData.length === 1) cx = startX + (endX - startX) / 2;
-            let cy = getRiskY(val);
-            let ccolor = getRiskLineColor(val);
-            // 畫出水平橫線代表數值點位
-            riskSvg += `<line x1="${cx - 8}" y1="${cy}" x2="${cx + 8}" y2="${cy}" stroke="${ccolor}" stroke-width="4" stroke-linecap="round" />`;
-        }
-    });
-
-    // 橫軸文字 (+1天)
-    const firstRiskDate = formatRiskAxisDatePlus1(histRev[0].record_end || histRev[0].record_date || '');
-    const lastRiskDate = formatRiskAxisDatePlus1(histRev[histRev.length - 1].record_end || histRev[histRev.length - 1].record_date || '');
-
-    riskSvg += `<text x="${startX}" y="105" font-size="12" fill="#999" text-anchor="middle">${firstRiskDate}</text>`;
-    if (riskChartData.length > 1) {
-        riskSvg += `<text x="${endX}" y="105" font-size="12" fill="#999" text-anchor="middle">${lastRiskDate}</text>`;
-    }
-    riskSvg += `</svg>`;
-
-    const toggleId = `risk-chart-container-${Date.now()}-${Math.floor(Math.random()*1000)}`;
-
-    // --- 新增：本次綜合分析 區塊準備 ---
-    let compAnalysisHtml = '';
-    
-    // 把三個變數都套用 isValidData 判斷，只要有一個是無效值或 NA，就不會顯示這個區塊
-    if (raw && isValidData(raw.PPI_count) && isValidData(raw.HBI_count) && isValidData(raw.CBP_count)) {
-        
-        // 產生前三項橫線 UI 的函數
-        const getCompBarHtml = (title, val) => {
-            // 1. 取得數值並先做四捨五入
-            const roundedVal = Math.round(val);
-            let colors = ['#e1e1e1', '#e1e1e1', '#e1e1e1', '#e1e1e1'];
-            
-            // 2~5. 依照四捨五入後的值判斷顏色區間
-            if (roundedVal >= 0 && roundedVal <= 24) {
-                colors[0] = '#596b75';
-            } else if (roundedVal >= 25 && roundedVal <= 49) {
-                colors[1] = '#8699a3';
-            } else if (roundedVal >= 50 && roundedVal <= 74) {
-                colors[2] = '#a79d8c';
-            } else if (roundedVal >= 75 && roundedVal <= 100) {
-                colors[3] = '#ff8c73';
+        // 轉換日期 + 1 天工具
+        const formatRiskAxisDatePlus1 = (d) => {
+            if (!d) return '';
+            const parts = d.split(' ')[0].split(/[-/]/); 
+            if (parts.length >= 3) {
+                let year = parseInt(parts[0], 10);
+                let month = parseInt(parts[1], 10) - 1; 
+                let day = parseInt(parts[2].substring(0,2), 10);
+                let dateObj = new Date(year, month, day);
+                if(isNaN(dateObj)) return d;
+                dateObj.setDate(dateObj.getDate() + 1);
+                let mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+                let dd = String(dateObj.getDate()).padStart(2, '0');
+                return `${mm}/${dd}`;
             }
-
-            return `
-                <div style="margin-top: 12px;">
-                    <div style="font-size: 14px; font-weight: bold; color: #5a5a5a;">${title}</div>
-                    <div style="display: flex; gap: 4px; height: 6px; width: 100%; margin-top: 12px;">
-                        <div style="flex: 1; background-color: ${colors[0]}; border-radius: 3px;"></div>
-                        <div style="flex: 1; background-color: ${colors[1]}; border-radius: 3px;"></div>
-                        <div style="flex: 1; background-color: ${colors[2]}; border-radius: 3px;"></div>
-                        <div style="flex: 1; background-color: ${colors[3]}; border-radius: 3px;"></div>
-                    </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-top: 4px; text-align: center;">
-                        <div style="flex: 1;">良好</div>
-                        <div style="flex: 1;">一般</div>
-                        <div style="flex: 1;">需留意</div>
-                        <div style="flex: 1;">不佳</div>
-                    </div>
-                </div>
-            `;
+            return d;
         };
 
-        const item1 = getCompBarHtml('脈搏間隔穩定度', raw.PPI_count);
-        const item2 = getCompBarHtml('低氧區穩定度', raw.HBI_count);
-        const item3 = getCompBarHtml('心血管壓力穩定度', raw.CBP_count);
+        const histRev = [...history7].reverse();
+        const riskChartData = histRev.map(h => (h.raw_json && h.raw_json.CVD !== undefined) ? h.raw_json.CVD : null);
 
-        compAnalysisHtml = `
-            <div style="margin-top: 20px; border-top: 1px dashed rgba(0,0,0,0.1); padding-top: 15px;">
-                <div style="font-size: 15px; font-weight: bold; color: #333; text-align: center;">本次綜合分析</div>
-                ${item1}
-                ${item2}
-                ${item3}
+        const getRiskY = (v) => {
+            if (v === 3) return 20;
+            if (v === 2) return 40;
+            if (v === 1) return 60;
+            if (v === 0) return 80;
+            return 80;
+        };
+        const getRiskLineColor = (v) => {
+            if (v === 3) return '#ff8c73';
+            if (v === 2) return '#a79d8c';
+            if (v === 1) return '#8699a3';
+            if (v === 0) return '#596b75';
+            return '#000';
+        };
+
+        const drawWidth = 300;
+        const startX = 60;
+        const endX = drawWidth - 20;
+        const xStep = riskChartData.length > 1 ? (endX - startX) / (riskChartData.length - 1) : 0;
+
+        // 繪製睡眠心血管負荷 SVG 趨勢圖 (使用橫線顯示點位)
+        let riskSvg = `<svg viewBox="0 0 ${drawWidth} 110" style="width: 100%; height: 110px; overflow: visible; margin-top: 10px; background-color: white; border-radius: 8px;">`;
+        
+        // 縱軸文字
+        riskSvg += `<text x="30" y="20" font-size="12" fill="#888" text-anchor="end" dominant-baseline="middle">高</text>`;
+        riskSvg += `<text x="30" y="40" font-size="12" fill="#888" text-anchor="end" dominant-baseline="middle">偏高</text>`;
+        riskSvg += `<text x="30" y="60" font-size="12" fill="#888" text-anchor="end" dominant-baseline="middle">一般</text>`;
+        riskSvg += `<text x="30" y="80" font-size="12" fill="#888" text-anchor="end" dominant-baseline="middle">良好</text>`;
+
+        // 數值資料繪圖
+        riskChartData.forEach((val, i) => {
+            if (val !== null) {
+                let cx = startX + i * xStep;
+                if (riskChartData.length === 1) cx = startX + (endX - startX) / 2;
+                let cy = getRiskY(val);
+                let ccolor = getRiskLineColor(val);
+                // 畫出水平橫線代表數值點位
+                riskSvg += `<line x1="${cx - 8}" y1="${cy}" x2="${cx + 8}" y2="${cy}" stroke="${ccolor}" stroke-width="4" stroke-linecap="round" />`;
+            }
+        });
+
+        // 橫軸文字 (+1天)
+        const firstRiskDate = formatRiskAxisDatePlus1(histRev[0].record_end || histRev[0].record_date || '');
+        const lastRiskDate = formatRiskAxisDatePlus1(histRev[histRev.length - 1].record_end || histRev[histRev.length - 1].record_date || '');
+
+        riskSvg += `<text x="${startX}" y="105" font-size="12" fill="#999" text-anchor="middle">${firstRiskDate}</text>`;
+        if (riskChartData.length > 1) {
+            riskSvg += `<text x="${endX}" y="105" font-size="12" fill="#999" text-anchor="middle">${lastRiskDate}</text>`;
+        }
+        riskSvg += `</svg>`;
+
+        const toggleId = `risk-chart-container-${Date.now()}-${Math.floor(Math.random()*1000)}`;
+
+        // --- 新增：本次綜合分析 區塊準備 ---
+        let compAnalysisHtml = '';
+        if (raw && raw.PPI_count != null && raw.HBI_count != null && raw.CBP_count != null) {
+            
+            // 產生前三項橫線 UI 的函數
+            const getCompBarHtml = (title, val) => {
+                // 1. 取得數值並先做四捨五入
+                const roundedVal = Math.round(val);
+                let colors = ['#e1e1e1', '#e1e1e1', '#e1e1e1', '#e1e1e1'];
                 
-            </div>
-        `;
-    }
-}
+                // 2~5. 依照四捨五入後的值判斷顏色區間
+                if (roundedVal >= 0 && roundedVal <= 24) {
+                    colors[0] = '#596b75';
+                } else if (roundedVal >= 25 && roundedVal <= 49) {
+                    colors[1] = '#8699a3';
+                } else if (roundedVal >= 50 && roundedVal <= 74) {
+                    colors[2] = '#a79d8c';
+                } else if (roundedVal >= 75 && roundedVal <= 100) {
+                    colors[3] = '#ff8c73';
+                }
+
+                return `
+                    <div style="margin-top: 12px;">
+                        <div style="font-size: 14px; font-weight: bold; color: #5a5a5a;">${title}</div>
+                        <div style="display: flex; gap: 4px; height: 6px; width: 100%; margin-top: 12px;">
+                            <div style="flex: 1; background-color: ${colors[0]}; border-radius: 3px;"></div>
+                            <div style="flex: 1; background-color: ${colors[1]}; border-radius: 3px;"></div>
+                            <div style="flex: 1; background-color: ${colors[2]}; border-radius: 3px;"></div>
+                            <div style="flex: 1; background-color: ${colors[3]}; border-radius: 3px;"></div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 12px; color: #888; margin-top: 4px; text-align: center;">
+                            <div style="flex: 1;">良好</div>
+                            <div style="flex: 1;">一般</div>
+                            <div style="flex: 1;">需留意</div>
+                            <div style="flex: 1;">不佳</div>
+                        </div>
+                    </div>
+                `;
+            };
+
+            const item1 = getCompBarHtml('脈搏間隔穩定度', raw.PPI_count);
+            const item2 = getCompBarHtml('低氧區穩定度', raw.HBI_count);
+            const item3 = getCompBarHtml('心血管壓力穩定度', raw.CBP_count);
+
+            compAnalysisHtml = `
+                <div style="margin-top: 20px; border-top: 1px dashed rgba(0,0,0,0.1); padding-top: 15px;">
+                    <div style="font-size: 15px; font-weight: bold; color: #333; text-align: center;">本次綜合分析</div>
+                    ${item1}
+                    ${item2}
+                    ${item3}
+                    
+                </div>
+            `;
+        }
         
         riskSectionHtml = `
             <div style="background-color: #f8fcfc; border-radius: 12px; padding: 15px; margin-bottom: 15px;">
