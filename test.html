@@ -2455,7 +2455,7 @@ function appendSummaryCard(dateTitle, data) {
 
         // --- 新增：本次綜合分析 區塊準備 ---
         let compAnalysisHtml = '';
-        if (raw && raw.PPI_count != null && raw.HBI_count != null && raw.CBP_count != null) {
+        if (raw && raw.PPI_count != null && raw.HBI_count != null && raw.CBP_count != null && raw.PPI_count !== 'NA' && raw.HBI_count !== 'NA' && raw.CBP_count !== 'NA') {
             
             // 產生前三項橫線 UI 的函數
             const getCompBarHtml = (title, val) => {
