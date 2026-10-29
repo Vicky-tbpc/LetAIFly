@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Soosyn 健康夥伴 n102-2</title>
+    <title>Soosyn 健康夥伴 n102-3</title>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -4169,8 +4169,15 @@ async function handleAbnormalityInput(msg) {
     // 情境 B：當天 -1 的 Battery_TST_min_A 沒有資料
     // ==========================================
     
-    // 1. 如果資料庫完全沒資料，或是只剩 1 筆(沒有前一天的歷史可以比較)
-    if (allData.length <= 1) {
+    // 1.1 如果資料庫完全沒資料
+    if (allData.length === 0) {
+        document.getElementById('temp-api-loading')?.remove();
+        await appendAiMessage("收到了！😊 現在想從哪個部分開始了解呢？");
+        return;
+    }
+
+    // 1.2 如果資料庫只有 1 筆 (沒有前一天的歷史可以比較)
+    if (allData.length === 1) {
         // 🌟 加入這行
         document.getElementById('temp-api-loading')?.remove();
         await appendAiMessage("收到了！😊 你可以直接點選下方按鈕查看完整的睡眠報告喔！");
