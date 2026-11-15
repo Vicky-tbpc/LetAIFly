@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Soosyn 健康夥伴 n102-3</title>
+    <title>Soosyn 健康夥伴 n103-3</title>
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -82,7 +82,7 @@
         .progress-bg { width: 100%; height: 10px; background: #e1e1e1; border-radius: 5px; overflow: hidden; }
         .progress-fill { height: 100%; transition: width 1s ease-in-out; border-radius: 5px; }
         .analysis-capsule { display: flex; align-items: center; padding: 12px 15px; border-radius: 16px; margin-top: 10px; font-size: 1rem; line-height: 1.5; }
-        .capsule-best { background-color: #f0f8f9; color: #4a5a61; border: 1px solid #e0eff1; }
+        .capsule-best { background-color: #f5f5f5; color: #4a5a61; border: 1px solid #d8dfe3; }
         .capsule-worst { background-color: #fff6f4; color: #6e524d; border: 1px solid #ffe8e3; }
         .capsule-icon { font-size: 1.2rem; margin-right: 10px; flex-shrink: 0; }
         .radar-svg { width: 100%; height: auto; }
@@ -642,6 +642,13 @@ const RANDOM_QUESTION_POOL = [
 // 從陣列中隨機抽樣指定數量（例如3個）不重複的項目
 function getRandomQuestions(arr, count = 3) {
     const shuffled = [...arr].sort(() => 0.5 - Math.random());
+    return shuffled.slice(0, count);
+}
+
+// 篩選掉「恢復」與「發炎」，並隨機抽樣 3 個不重複項目
+function getRandomFilteredQuestions(count = 3) {
+    const filtered = RANDOM_QUESTION_POOL.filter(q => !q.includes('恢復') && !q.includes('發炎'));
+    const shuffled = [...filtered].sort(() => 0.5 - Math.random());
     return shuffled.slice(0, count);
 }
 
@@ -2067,40 +2074,51 @@ if (needsAction) {
 }
 
 // 6. 將恢復指數建議新增至膠囊列表 注意：recType 為後端判斷用分類，不直接顯示給使用者。前端只顯示「恢復指數優先調整項目」。
+const recoveryContentHtml = `
+    <div style="margin-bottom: 8px;">
+        <strong>📌 恢復指數優先調整項目： ${needsAction ? weakest.name : '目前無特別需改善項目'}</strong>
+    </div>
+    <div>
+        ${actionText}
+    </div>
+`;
+
 finalCapsules.push({
     type: 'recovery',
     text: `
-        <div style="margin-bottom: 8px;">
-            <strong>
-                📌 恢復指數優先調整項目：
-                ${needsAction ? weakest.name : '目前無特別需改善項目'}
-            </strong>
+        <div style="text-align: center; margin-bottom: 8px;">
+            <strong>恢復指數調整建議</strong>
         </div>
-        <div>
-            ${actionText}
-        </div>
+        ${buildToggleWrapper(recoveryContentHtml, 'recovery', '▲ 收合完整建議', '▼ 查看完整建議')}
     `
 });
 
-    // --- 4. 組合最終的 Capsules (原有的日常/運動建議) ---
-    finalCapsules.push({ 
-        type: 'best',  
-        text: `
-            <div style="margin-bottom: 8px;">
-                <strong>💡 日常活動建議</strong><br>
-                ${dailyAction}
-            </div>
-            <div>
-                <strong>🏃‍♂️ 運動建議</strong><br>
-                ${exerciseRec}<br>
-                <span style="display:inline-block; margin-top:4px; font-size:0.8em; color:#ff8c73;">運動若出現胸部不適或呼吸困難，請停止活動。</span>
-            </div>
-        ` 
-    });
+// --- 2. 日常活動與運動建議 (加入展開/收合) ---
+const bestContentHtml = `
+    <div style="margin-bottom: 8px;">
+        <strong>💡 日常活動建議</strong><br>
+        ${dailyAction}
+    </div>
+    <div>
+        <strong>🏃 運動建議</strong><br>
+        ${exerciseRec}<br>
+        <span style="display:inline-block; margin-top:4px; font-size:0.8em; color:#ff8c73;">運動若出現胸部不適或呼吸困難，請停止活動。</span>
+    </div>
+`;
+
+finalCapsules.push({ 
+    type: 'best',   
+    text: `
+        <div style="text-align: center; margin-bottom: 8px;">
+            <strong>日常活動與運動建議</strong>
+        </div>
+        ${buildToggleWrapper(bestContentHtml, 'best', '▲ 收合完整建議', '▼ 查看完整建議')}
+    `
+});
 
     const statusLight = raw?.light_status || '--';
 
-    // 準備要傳回地端的 5 項資料
+    // --- 準備要傳回地端的資料 ---
 const priorityItem = needsAction ? weakest.name : '目前無特別需改善項目';
 const payload = {
     serial: currentSerial,
@@ -2109,10 +2127,11 @@ const payload = {
     actionText: actionText,
     exerciseLevel: finalExerciseLevel,
     dailyAction: dailyAction,
-    exerciseRec: exerciseRec
+    exerciseRec: exerciseRec,
+    focusContent: focusContent  // 👈 新增這行，把整體解讀內容傳進去
 };
 
-// 背景發送 API 將資料存入地端 Excel，這裡不加上 await 避免阻塞前端渲染速度
+// 背景發送 API 將資料存入地端 Excel
 fetch('/api/health?action=save_profile', {
     method: 'POST',
     headers: {
@@ -2382,7 +2401,7 @@ async function executeQuickQuestion(questionText) {
 
     try {
         // 將問題送給後端一般聊天 API
-        const response = await fetch('/api/gemini_02', {
+        const response = await fetch('/api/gemini', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -2446,7 +2465,7 @@ async function requestTrendAiAnalysis(type, title, formattedDataPoints, days) {
     scrollToBottom();
 
     try {
-        const response = await fetch('/api/gemini_02', {
+        const response = await fetch('/api/gemini', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -3667,36 +3686,150 @@ async function appendSummaryCard(dateTitle, data, serialNumber) {
     const o2ExtraHtml = buildToggleWrapper(buildChartCard('HBI 低氧負擔指數', 'HBI', history7, 'hbi', '🫁 HBI 低氧負擔指數', parseNum, format1Dec, '%min/h'), 'o2');
     const rhrExtraHtml = buildToggleWrapper(buildChartCard('7日趨勢', 'RHR_raw', history7, 'rhr', '❤️ 靜息心率 (RHR)', parseNum, formatRound, 'bpm', true, true), 'rhr', '▲ 收合7日趨勢', '▼ 查看7日趨勢');
 
-    let alertHtml = '';
-    if (batteryVal < 60 || statusLight === '黃燈' || statusLight === '紅燈') {
-        let alertText = '';
-        
-        if (batteryVal >= 60 && statusLight === '紅燈') {
-            alertText = `恢復指數 ${batteryVal}，發炎風險紅燈。<br>睡眠提供了良好的身體修復，但生理狀態顯示身體可能處於較高的發炎風險。建議維持充足睡眠與適當休息，並留意近期身體狀況是否出現變化。`;
-        } else if (batteryVal >= 60 && statusLight === '黃燈') {
-            alertText = `恢復指數 ${batteryVal}，發炎風險黃燈。<br>睡眠修復狀況良好，但生理狀態顯示身體可能已有輕微壓力累積。建議持續維持規律作息與良好睡眠，協助身體恢復平衡。`;
-        } else if (batteryVal < 60 && statusLight === '綠燈') {
-            alertText = `恢復指數 ${batteryVal}，發炎風險綠燈。<br>睡眠修復不足，但目前生理狀態仍維持穩定。建議改善睡眠時間與品質，維持身體正常的修復能力。`;
-        } else if (batteryVal < 60 && statusLight === '黃燈') {
-            alertText = `恢復指數 ${batteryVal}，發炎風險黃燈。<br>睡眠修復不足，且生理狀態顯示身體可能已有壓力累積。建議增加休息、提升睡眠品質，協助身體恢復正常修復狀態。`;
-        } else if (batteryVal < 60 && statusLight === '紅燈') {
-            alertText = `恢復指數 ${batteryVal}，發炎風險紅燈。<br>睡眠修復不足，且生理狀態顯示身體可能處於較高的發炎風險。建議優先安排充分休息、改善睡眠品質，並持續留意身體狀況；如有持續不適，建議諮詢醫療專業人員。`;
-        }
+    // 0. 從 raw 中安全取得 Daily_Tag 與 light_status
+let Daily_Tag = (raw && raw.Daily_Tag) ? raw.Daily_Tag : null;
+let lightStatus = (raw && raw.light_status !== undefined) ? raw.light_status : (data?.light_status || null);
 
-        if (alertText !== '') {
-            alertHtml = `
-                <div style="background-color: #fffdf8; border-radius: 12px; padding: 15px; margin-bottom: 15px; border-left: 4px solid #ffb400; box-shadow: 0 1px 5px rgba(0,0,0,0.05);">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
-                        <span style="font-size: 1.2rem;">🔔</span>
-                        <span style="font-weight: bold; color: #d97706;">健康提醒</span>
-                    </div>
-                    <div style="font-size: 14px; color: #5a5a5a; line-height: 1.6;">
-                        ${alertText}
-                    </div>
-                </div>
-            `;
-        }
+// 1. 決定恢復指數的 title 代碼 (ri_01 ~ ri_04)
+let riCode = 'ri_01';
+if (batteryVal >= 95) {
+    riCode = 'ri_04';
+} else if (batteryVal >= 80) {
+    riCode = 'ri_03';
+} else if (batteryVal >= 60) {
+    riCode = 'ri_02';
+} else {
+    riCode = 'ri_01';
+}
+
+// 2. 決定 Daily_Tag 的 title 代碼與顯示文字
+let tagCode = 'dailytag_01';
+let displayTag = '狀態平穩';
+let rawTagKey = 'NULL/undefined'; // 用於 priority_focus_lookup 的鍵
+
+if (Daily_Tag && Daily_Tag !== 'NULL' && Daily_Tag !== 'undefined' && Daily_Tag !== 'null') {
+    displayTag = Daily_Tag;
+    rawTagKey = Daily_Tag;
+    
+    const tagMap = {
+        '黃金修復': 'dailytag_02',
+        '標準修復': 'dailytag_03',
+        '精神負荷': 'dailytag_04',
+        '高身心壓力': 'dailytag_05',
+        '過度疲憊': 'dailytag_06',
+        '修復不足': 'dailytag_07',
+        '極度疲乏日': 'dailytag_08',
+        '睡眠結構混亂': 'dailytag_09',
+        '極端負荷': 'dailytag_10',
+        '最差睡眠結構': 'dailytag_11',
+        '過度訓練/發炎': 'dailytag_12'
+    };
+    
+    if (tagMap[Daily_Tag]) {
+        tagCode = tagMap[Daily_Tag];
     }
+}
+
+// 3. 決定 light_status 的 title 代碼與顯示文字
+let lightCode = 'light_05';
+let displayLight = '暫無發炎風險判讀';
+let rawLightKey = 'NULL/undefined'; // 用於 priority_focus_lookup 的鍵
+
+if (lightStatus === 'NA') {
+    displayLight = '暫不提供發炎風險判讀';
+    lightCode = 'light_04';
+    rawLightKey = 'NA';
+} else if (lightStatus === '綠燈' || lightStatus === '黃燈' || lightStatus === '紅燈') {
+    displayLight = lightStatus;
+    rawLightKey = lightStatus;
+    if (lightStatus === '綠燈') lightCode = 'light_01';
+    if (lightStatus === '黃燈') lightCode = 'light_02';
+    if (lightStatus === '紅燈') lightCode = 'light_03';
+} else {
+    displayLight = '暫無發炎風險判讀';
+    lightCode = 'light_05';
+    rawLightKey = 'NULL/undefined';
+}
+
+// 4. 決定電池分數區間鍵 (<60 或 >=60)
+let batteryKey = batteryVal < 60 ? '<60' : '>=60';
+
+// 移除前面的 "result/"，只保留資料庫實際存放的格式 (例如: ">=60, NULL/undefined, 綠燈")
+let lookupResultKey = `${batteryKey}, ${rawTagKey}, ${rawLightKey}`;
+
+// 檢查 F12 印出來的 key 是否變為: ">=60, NULL/undefined, 綠燈"
+console.log("Supabase Lookup Key:", lookupResultKey);
+
+// 5. 同時從 Supabase 讀取資料 (使用 maybeSingle 避免找不到資料報錯)
+const [
+    { data: riData },
+    { data: tagData },
+    { data: lightData },
+    { data: focusData }
+] = await Promise.all([
+    _supabase.from('phrase_library').select('detailed_content').eq('title', riCode).maybeSingle(),
+    _supabase.from('phrase_library').select('detailed_content').eq('title', tagCode).maybeSingle(),
+    _supabase.from('phrase_library').select('detailed_content').eq('title', lightCode).maybeSingle(),
+    _supabase.from('priority_focus_lookup').select('content').eq('result', lookupResultKey).maybeSingle()
+]);
+
+let detailText1 = riData ? riData.detailed_content : '';
+let detailText2 = tagData ? tagData.detailed_content : '';
+let detailText3 = lightData ? lightData.detailed_content : '';
+let focusContent = focusData ? focusData.content : '目前尚無此狀態的綜合解讀內容。';
+
+// 6. 建立 insightHtml（包含恢復指數、恢復狀態、發炎風險、整體解讀四個區塊）
+let insightHtml = `
+    <div style="margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px;">
+        <div class="analysis-capsule capsule-best" style="display: flex; flex-direction: column; align-items: stretch; gap: 12px;">
+            <!-- 恢復指數區塊 -->
+            <div>
+                <div style="margin-bottom: 8px;">
+                    <strong>📈 恢復指數：${batteryVal}</strong>
+                </div>
+                <div style="line-height: 1.6; color: inherit;">
+                    ${detailText1}
+                </div>
+            </div>
+            
+            <hr style="border: none; border-top: 1px solid rgba(0,0,0,0.1); margin: 0;">
+
+            <!-- 恢復狀態區塊 -->
+            <div>
+                <div style="margin-bottom: 8px;">
+                    <strong>🔄 恢復狀態：${displayTag}</strong>
+                </div>
+                <div style="line-height: 1.6; color: inherit;">
+                    ${detailText2}
+                </div>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid rgba(0,0,0,0.1); margin: 0;">
+
+            <!-- 發炎風險區塊 -->
+            <div>
+                <div style="margin-bottom: 8px;">
+                    <strong>🔔 發炎風險：${displayLight}</strong>
+                </div>
+                <div style="line-height: 1.6; color: inherit;">
+                    ${detailText3}
+                </div>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid rgba(0,0,0,0.1); margin: 0;">
+
+            <!-- 整體解讀區塊 (新增) -->
+            <div>
+                <div style="margin-bottom: 8px;">
+                    <strong>📋 整體解讀</strong>
+                </div>
+                <div style="line-height: 1.6; color: inherit;">
+                    ${focusContent}
+                </div>
+            </div>
+        </div>
+    </div>
+`;
 
     let rhrSectionHtml = '';
     if (raw && raw.RHR_raw != null && raw.RHR_raw !== 'NA' && raw.RHR_raw !== 'N/A') {
@@ -3994,7 +4127,7 @@ async function appendSummaryCard(dateTitle, data, serialNumber) {
             </div>
         </div>
 
-        ${alertHtml}
+        ${insightHtml}
     `;
 
     const cardHtml = `
@@ -4173,6 +4306,10 @@ async function handleAbnormalityInput(msg) {
     if (allData.length === 0) {
         document.getElementById('temp-api-loading')?.remove();
         await appendAiMessage("收到了！😊 現在想從哪個部分開始了解呢？");
+        
+        // 🌟 改用 appendAiFollowUpOptions 渲染過濾後的隨機按鈕
+        const randomQuestions = getRandomFilteredQuestions(3);
+        appendAiFollowUpOptions(randomQuestions);
         return;
     }
 
@@ -4306,14 +4443,26 @@ async function handleAbnormalityInput(msg) {
             // 小卡出現後，再給一個引導
             await new Promise(r => setTimeout(r, 1000));
             await appendAiMessage("目前還沒有恢復指數的分析，但上面的觀察也很有參考價值。現在想了解哪一部分呢？");
+            
+            // 🌟 改用 appendAiFollowUpOptions 渲染過濾後的隨機按鈕
+            const randomQuestions = getRandomFilteredQuestions(3);
+            appendAiFollowUpOptions(randomQuestions);
         } else {
             await appendAiMessage("收到了！😊 現在想從哪個部分開始了解呢？");
+            
+            // 🌟 改用 appendAiFollowUpOptions 渲染過濾後的隨機按鈕
+            const randomQuestions = getRandomFilteredQuestions(3);
+            appendAiFollowUpOptions(randomQuestions);
         }
     } catch (e) {
         console.error("讀取 phrase_library 失敗:", e);
         // 🌟 catch 裡面也要加，避免出錯時泡泡卡在畫面上
         document.getElementById('temp-api-loading')?.remove();
         await appendAiMessage("收到了！😊 現在想從哪個部分開始了解呢？");
+        
+        // 🌟 改用 appendAiFollowUpOptions 渲染過濾後的隨機按鈕
+        const randomQuestions = getRandomFilteredQuestions(3);
+        appendAiFollowUpOptions(randomQuestions);
     }
 }
     function zoomChart(el) { document.getElementById('zoom-container').innerHTML = el.innerHTML; document.getElementById('zoom-overlay').classList.remove('hidden'); }
@@ -4447,7 +4596,7 @@ async function callGeminiAPI(prompt) {
     const targetDateStr = getTargetDate(prompt); 
 
     try {
-        const res = await fetch('/api/gemini_02', {
+        const res = await fetch('/api/gemini', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
@@ -4644,7 +4793,7 @@ async function getAIGreetingPayload(serial) {
 // --- 修改：呼叫後端專屬開場白 API (支援延伸問題按鈕) ---
 async function callGreetingAPI(name, aiName, aiData) {
     try {
-        const res = await fetch('/api/gemini_02', {
+        const res = await fetch('/api/gemini', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
