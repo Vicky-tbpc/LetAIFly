@@ -1,4 +1,4 @@
-// api/health.js_儲存
+// api/health.js_增加focus
 export default async function handler(req, res) {
   // 把 console.log 移到這裡，這樣每次觸發 API 都會印出 Log
   console.log('目前讀取的網址清單:', process.env.LOCAL_TUNNEL_URLS || process.env.LOCAL_TUNNEL_URL);
@@ -65,6 +65,7 @@ export default async function handler(req, res) {
       return res.status(error.status || 500).send(`無法取得 PDF，地端伺服器說：${errMsg}`);
     }
   }
+
   // 3. [新增] 接收前端 5 項建議資料並轉發至地端
   if (req.method === 'POST' && req.query.action === 'save_profile') {
     const pathAndQuery = `/api/save-recommendation`;
@@ -85,6 +86,49 @@ export default async function handler(req, res) {
       return res.status(error.status || 500).json({ error: '無法將設定儲存到地端', detail: error.message });
     }
   }
+
+  // 3.1 [新增] 接收前端的 focusContent 並轉發至地端
+  if (req.method === 'POST' && req.query.action === 'save_focus_content') {
+    const pathAndQuery = `/api/save-focus-content`;
+    try {
+      const response = await fetchFromTunnels(pathAndQuery, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-API-KEY': API_KEY,
+          'ngrok-skip-browser-warning': 'true' 
+        },
+        body: JSON.stringify(req.body)
+      });
+      const resData = await response.json();
+      return res.status(200).json(resData);
+    } catch (error) {
+      console.error('Save focus content error:', error);
+      return res.status(error.status || 500).json({ error: '無法將整體解讀儲存到地端', detail: error.message });
+    }
+  }
+  
+  // 3.5 [新增] 接收前端要求讀取健康建議，轉發至地端 app.py
+  if (req.method === 'GET' && req.query.action === 'get_recommendation') {
+    const { serial, date } = req.query;
+    if (!serial || !date) return res.status(400).json({ error: '缺少 serial 或 date 參數' });
+
+    const pathAndQuery = `/api/get-recommendation?serial=${serial}&date=${date}`;
+    try {
+      const response = await fetchFromTunnels(pathAndQuery, {
+        headers: { 
+          'X-API-KEY': API_KEY,
+          'ngrok-skip-browser-warning': 'true' 
+        }
+      });
+      const data = await response.json();
+      return res.status(200).json(data);
+    } catch (error) {
+      console.error('Get recommendation error:', error);
+      return res.status(error.status || 500).json({ error: '無法讀取地端建議資料', detail: error.message });
+    }
+  }
+
   // 4. 一般 API 邏輯
   const { start, end, serial } = req.query; 
 
