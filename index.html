@@ -4196,7 +4196,7 @@ async function handleAbnormalityInput(msg) {
 
         const centeredReportBtnHtml = hasYesterdayTRT ? `
             <div style="text-align: center; border-top: 1px dashed #e0e0e0; padding-top: 12px; margin-top: 12px;">
-                <button onclick="openSleepReport('${preDateStr}')" style="background-color: #a79d8c; color: white; border: none; padding: 8px 20px; border-radius: 20px; font-size: 0.85em; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+                <button onclick="openSleepReport('${preDateStr}')" style="background-color: var(--tbp-blue); color: white; border: none; padding: 8px 20px; border-radius: 20px; font-size: 0.85em; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
                     📄 開啟睡眠報告
                 </button>
             </div>` : '';
@@ -4289,7 +4289,7 @@ async function handleAbnormalityInput(msg) {
         // 睡眠報告按鈕置中樣式（若前面 reportButtonHtml 還沒改成置中，可直接用這段）
         const centeredReportBtnHtml = hasYesterdayTRT ? `
             <div style="text-align: center; border-top: 1px dashed #e0e0e0; padding-top: 12px; margin-top: 12px;">
-                <button onclick="openSleepReport('${preDateStr}')" style="background-color: #a79d8c; color: white; border: none; padding: 8px 20px; border-radius: 20px; font-size: 0.85em; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
+                <button onclick="openSleepReport('${preDateStr}')" style="background-color: var(--tbp-blue); color: white; border: none; padding: 8px 20px; border-radius: 20px; font-size: 0.85em; cursor: pointer; transition: opacity 0.2s;" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1">
                     📄 開啟睡眠報告
                 </button>
             </div>` : '';
